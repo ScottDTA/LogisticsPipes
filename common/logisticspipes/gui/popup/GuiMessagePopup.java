@@ -1,10 +1,10 @@
 package logisticspipes.gui.popup;
 
+import net.minecraft.client.gui.GuiButton;
+
 import logisticspipes.utils.gui.GuiGraphics;
 import logisticspipes.utils.gui.SubGuiScreen;
 import logisticspipes.utils.string.StringUtils;
-
-import net.minecraft.client.gui.GuiButton;
 
 public class GuiMessagePopup extends SubGuiScreen {
 
@@ -26,7 +26,6 @@ public class GuiMessagePopup extends SubGuiScreen {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public void initGui() {
 		super.initGui();

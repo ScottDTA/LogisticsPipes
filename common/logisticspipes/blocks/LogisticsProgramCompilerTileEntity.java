@@ -22,6 +22,7 @@ import logisticspipes.items.ItemLogisticsProgrammer;
 import logisticspipes.network.NewGuiHandler;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.abstractguis.CoordinatesGuiProvider;
+import logisticspipes.network.abstractpackets.CoordinatesPacket;
 import logisticspipes.network.guis.block.ProgramCompilerGui;
 import logisticspipes.network.packets.block.CompilerStatusPacket;
 import logisticspipes.pipes.PipeItemsBasicLogistics;
@@ -36,6 +37,7 @@ import network.rs485.logisticspipes.world.DoubleCoordinates;
 public class LogisticsProgramCompilerTileEntity extends LogisticsSolidTileEntity implements IGuiTileEntity, IGuiOpenControler {
 
 	public static class ProgrammCategories {
+
 		public static final ResourceLocation BASIC = new ResourceLocation("logisticspipes", "compilercategory.basic");
 		public static final ResourceLocation TIER_2 = new ResourceLocation("logisticspipes", "compilercategory.tier_2");
 		public static final ResourceLocation FLUID = new ResourceLocation("logisticspipes", "compilercategory.fluid");
@@ -44,6 +46,7 @@ public class LogisticsProgramCompilerTileEntity extends LogisticsSolidTileEntity
 		public static final ResourceLocation CHASSIS_2 = new ResourceLocation("logisticspipes", "compilercategory.chassis_2");
 		public static final ResourceLocation CHASSIS_3 = new ResourceLocation("logisticspipes", "compilercategory.chassis_3");
 		public static final ResourceLocation MODDED = new ResourceLocation("logisticspipes", "compilercategory.modded");
+
 		static {
 			//Force the order of keys
 			programByCategory.put(BASIC, new HashSet<>());
@@ -64,6 +67,8 @@ public class LogisticsProgramCompilerTileEntity extends LogisticsSolidTileEntity
 	private ResourceLocation currentTask = null;
 	@Getter
 	private double taskProgress = 0;
+	@Getter
+	private boolean wasAbleToConsumePower = false;
 
 	@Getter
 	private SimpleStackInventory inventory = new SimpleStackInventory(2, "programcompilerinv", 64);
@@ -88,17 +93,28 @@ public class LogisticsProgramCompilerTileEntity extends LogisticsSolidTileEntity
 	}
 
 	public void triggerNewTask(ResourceLocation category, String taskType) {
-		if(currentTask != null) return;
+		if (currentTask != null) return;
 		this.taskType = taskType;
 		currentTask = category;
 		taskProgress = 0;
+		wasAbleToConsumePower = true;
 		updateClient();
 	}
 
 	@Override
 	public void guiOpenedByPlayer(EntityPlayer player) {
 		playerList.add(player);
-		MainProxy.sendPacketToPlayer(PacketHandler.getPacket(CompilerStatusPacket.class).setCategory(currentTask).setProgress(taskProgress).setDisk(getInventory().getStackInSlot(0)).setProgrammer(getInventory().getStackInSlot(1)).setTilePos(this), player);
+		MainProxy.sendPacketToPlayer(getClientUpdatePacket(), player);
+	}
+
+	private CoordinatesPacket getClientUpdatePacket() {
+		return PacketHandler.getPacket(CompilerStatusPacket.class)
+				.setCategory(currentTask)
+				.setProgress(taskProgress)
+				.setWasAbleToConsumePower(wasAbleToConsumePower)
+				.setDisk(getInventory().getStackInSlot(0))
+				.setProgrammer(getInventory().getStackInSlot(1))
+				.setTilePos(this);
 	}
 
 	@Override
@@ -109,10 +125,11 @@ public class LogisticsProgramCompilerTileEntity extends LogisticsSolidTileEntity
 	@Override
 	public void update() {
 		super.update();
-		if(MainProxy.isServer(world)) {
+		if (MainProxy.isServer(world)) {
 			if (currentTask != null) {
+				wasAbleToConsumePower = false;
 				for (EnumFacing dir : EnumFacing.VALUES) {
-					if(dir == EnumFacing.UP) continue;
+					if (dir == EnumFacing.UP) continue;
 					DoubleCoordinates pos = CoordinateUtils.add(new DoubleCoordinates(this), dir);
 					TileEntity tile = pos.getTileEntity(getWorld());
 					if (!(tile instanceof LogisticsTileGenericPipe)) {
@@ -124,7 +141,16 @@ public class LogisticsProgramCompilerTileEntity extends LogisticsSolidTileEntity
 					}
 					CoreRoutedPipe pipe = (CoreRoutedPipe) tPipe.pipe;
 					if (pipe.useEnergy(10)) {
-						taskProgress += 0.01;
+						if (taskType.equals("category")) {
+							taskProgress += 0.0005;
+						} else if (taskType.equals("program")) {
+							taskProgress += 0.0025;
+						} else if (taskType.equals("flash")) {
+							taskProgress += 0.01;
+						} else {
+							taskProgress += 1;
+						}
+						wasAbleToConsumePower = true;
 					}
 				}
 				if (taskProgress >= 1) {
@@ -135,9 +161,9 @@ public class LogisticsProgramCompilerTileEntity extends LogisticsSolidTileEntity
 						NBTTagList list = getNBTTagListForKey("compilerPrograms");
 						list.appendTag(new NBTTagString(currentTask.toString()));
 					} else if (taskType.equals("flash")) {
-						if(!getInventory().getStackInSlot(1).isEmpty()) {
+						if (!getInventory().getStackInSlot(1).isEmpty()) {
 							ItemStack programmer = getInventory().getStackInSlot(1);
-							if(!programmer.hasTagCompound()) {
+							if (!programmer.hasTagCompound()) {
 								programmer.setTagCompound(new NBTTagCompound());
 							}
 							programmer.getTagCompound().setString(ItemLogisticsProgrammer.RECIPE_TARGET, currentTask.toString());
@@ -149,6 +175,7 @@ public class LogisticsProgramCompilerTileEntity extends LogisticsSolidTileEntity
 					taskType = "";
 					currentTask = null;
 					taskProgress = 0;
+					wasAbleToConsumePower = false;
 				}
 				updateClient();
 			}
@@ -156,7 +183,7 @@ public class LogisticsProgramCompilerTileEntity extends LogisticsSolidTileEntity
 	}
 
 	public void updateClient() {
-		MainProxy.sendToPlayerList(PacketHandler.getPacket(CompilerStatusPacket.class).setCategory(currentTask).setProgress(taskProgress).setDisk(getInventory().getStackInSlot(0)).setProgrammer(getInventory().getStackInSlot(1)).setTilePos(this), playerList);
+		MainProxy.sendToPlayerList(getClientUpdatePacket(), playerList);
 	}
 
 	@Override
@@ -169,6 +196,7 @@ public class LogisticsProgramCompilerTileEntity extends LogisticsSolidTileEntity
 		getInventory().setInventorySlotContents(1, compilerStatusPacket.getProgrammer());
 		currentTask = compilerStatusPacket.getCategory();
 		taskProgress = compilerStatusPacket.getProgress();
+		wasAbleToConsumePower = compilerStatusPacket.isWasAbleToConsumePower();
 	}
 
 	@Override

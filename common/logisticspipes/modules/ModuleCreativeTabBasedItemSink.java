@@ -5,6 +5,11 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nonnull;
+
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 
 import logisticspipes.gui.hud.modules.HUDStringBasedItemSink;
 import logisticspipes.interfaces.IClientInformationProvider;
@@ -12,8 +17,6 @@ import logisticspipes.interfaces.IHUDModuleHandler;
 import logisticspipes.interfaces.IHUDModuleRenderer;
 import logisticspipes.interfaces.IModuleWatchReciver;
 import logisticspipes.interfaces.IStringBasedModule;
-import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
-import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.network.NewGuiHandler;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
@@ -29,11 +32,9 @@ import logisticspipes.utils.PlayerCollectionList;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
+import network.rs485.logisticspipes.module.Gui;
 
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.nbt.NBTTagCompound;
-
-public class ModuleCreativeTabBasedItemSink extends LogisticsGuiModule implements IStringBasedModule, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver {
+public class ModuleCreativeTabBasedItemSink extends LogisticsModule implements IStringBasedModule, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, Gui {
 
 	public final List<String> tabList = new LinkedList<>();
 	private final Set<String> tabSet = new HashSet<>();
@@ -44,6 +45,10 @@ public class ModuleCreativeTabBasedItemSink extends LogisticsGuiModule implement
 
 	private SinkReply _sinkReply;
 
+	public static String getName() {
+		return "item_sink_creativetab";
+	}
+
 	@Override
 	public void registerPosition(ModulePositionType slot, int positionInt) {
 		super.registerPosition(slot, positionInt);
@@ -51,51 +56,34 @@ public class ModuleCreativeTabBasedItemSink extends LogisticsGuiModule implement
 	}
 
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
+	public SinkReply sinksItem(@Nonnull ItemStack stack, ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit, boolean forcePassive) {
 		if (bestPriority > _sinkReply.fixedPriority.ordinal() || (bestPriority == _sinkReply.fixedPriority.ordinal() && bestCustomPriority >= _sinkReply.customPriority)) {
 			return null;
 		}
-		if (tabSet == null) {
-			buildModIdSet();
+		if (tabSet.isEmpty()) {
+			tabSet.addAll(tabList);
 		}
-		// TODO: Creative tab name is only available client side..
+		if (tabSet.contains(item.getCreativeTabName())) {
+			if (_service.canUseEnergy(5)) {
+				return _sinkReply;
+			}
+		}
 		return null;
 	}
 
 	@Override
-	protected ModuleCoordinatesGuiProvider getPipeGuiProvider() {
-		NBTTagCompound nbt = new NBTTagCompound();
-		writeToNBT(nbt);
-		return NewGuiHandler.getGui(StringBasedItemSinkModuleGuiSlot.class).setNbt(nbt);
-	}
-
-	@Override
-	protected ModuleInHandGuiProvider getInHandGuiProvider() {
-		return NewGuiHandler.getGui(StringBasedItemSinkModuleGuiInHand.class);
-	}
-
-	@Override
-	public LogisticsModule getSubModule(int slot) {
-		return null;
-	}
-
-	private void buildModIdSet() {
-		tabSet.clear();
-		tabSet.addAll(tabList);
-	}
-
-	@Override
-	public void readFromNBT(NBTTagCompound nbttagcompound) {
+	public void readFromNBT(@Nonnull NBTTagCompound nbttagcompound) {
 		tabList.clear();
 		int limit = nbttagcompound.getInteger("listSize");
 		for (int i = 0; i < limit; i++) {
 			tabList.add(nbttagcompound.getString("Mod" + i));
 		}
-		buildModIdSet();
+		tabSet.clear();
+		tabSet.addAll(tabList);
 	}
 
 	@Override
-	public void writeToNBT(NBTTagCompound nbttagcompound) {
+	public void writeToNBT(@Nonnull NBTTagCompound nbttagcompound) {
 		nbttagcompound.setInteger("listSize", tabList.size());
 		for (int i = 0; i < tabList.size(); i++) {
 			nbttagcompound.setString("Mod" + i, tabList.get(i));
@@ -106,7 +94,7 @@ public class ModuleCreativeTabBasedItemSink extends LogisticsGuiModule implement
 	public void tick() {}
 
 	@Override
-	public List<String> getClientInformation() {
+	public @Nonnull List<String> getClientInformation() {
 		List<String> list = new ArrayList<>();
 		list.add("Mods: ");
 		list.addAll(tabList);
@@ -160,11 +148,6 @@ public class ModuleCreativeTabBasedItemSink extends LogisticsGuiModule implement
 	}
 
 	@Override
-	public List<ItemIdentifier> getSpecificInterests() {
-		return null;
-	}
-
-	@Override
 	public boolean interestedInAttachedInventory() {
 		return false;
 	}
@@ -186,7 +169,21 @@ public class ModuleCreativeTabBasedItemSink extends LogisticsGuiModule implement
 
 	@Override
 	public String getStringForItem(ItemIdentifier ident) {
-		// TODO: Creative tab label is only available client side..
-		return "";
+		return ident.getCreativeTabName();
 	}
+
+	@Nonnull
+	@Override
+	public ModuleCoordinatesGuiProvider getPipeGuiProvider() {
+		NBTTagCompound nbt = new NBTTagCompound();
+		writeToNBT(nbt);
+		return NewGuiHandler.getGui(StringBasedItemSinkModuleGuiSlot.class).setNbt(nbt);
+	}
+
+	@Nonnull
+	@Override
+	public ModuleInHandGuiProvider getInHandGuiProvider() {
+		return NewGuiHandler.getGui(StringBasedItemSinkModuleGuiInHand.class);
+	}
+
 }

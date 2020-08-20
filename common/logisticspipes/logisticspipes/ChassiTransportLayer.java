@@ -1,10 +1,11 @@
 package logisticspipes.logisticspipes;
 
-import logisticspipes.modules.abstractmodules.LogisticsModule;
+import net.minecraft.util.EnumFacing;
+
+import logisticspipes.modules.LogisticsModule;
 import logisticspipes.pipes.PipeLogisticsChassi;
 import logisticspipes.utils.SinkReply;
-
-import net.minecraft.util.EnumFacing;
+import logisticspipes.utils.item.ItemIdentifierStack;
 
 public class ChassiTransportLayer extends TransportLayer {
 
@@ -33,15 +34,16 @@ public class ChassiTransportLayer extends TransportLayer {
 			_chassiPipe.notifyOfItemArival(item.getInfo());
 			return false;
 		}
-		SinkReply reply = module.sinksItem(item.getItemIdentifierStack().getItem(), -1, 0, true, false);
+		final ItemIdentifierStack itemidStack = item.getItemIdentifierStack();
+		SinkReply reply = module.sinksItem(itemidStack.makeNormalStack(), itemidStack.getItem(), -1, 0, true, false, false);
 		if (reply == null || reply.maxNumberOfItems < 0) {
 			_chassiPipe.notifyOfItemArival(item.getInfo());
 			return false;
 		}
 
-		if (reply.maxNumberOfItems > 0 && item.getItemIdentifierStack().getStackSize() > reply.maxNumberOfItems) {
+		if (reply.maxNumberOfItems > 0 && itemidStack.getStackSize() > reply.maxNumberOfItems) {
 			EnumFacing o = _chassiPipe.getPointedOrientation();
-			if (o == null || o == null) {
+			if (o == null) {
 				o = EnumFacing.UP;
 			}
 

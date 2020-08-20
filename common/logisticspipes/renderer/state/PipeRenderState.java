@@ -35,6 +35,7 @@ public class PipeRenderState implements IClientState {
 
 	public List<RenderEntry> cachedRenderer = null;
 	public Cache<LocalCacheType, Object> objectCache = CacheBuilder.newBuilder().build();
+	public int cachedRenderIndex = -1;
 	public boolean forceRenderOldPipe = false;
 	private boolean[] solidSidesCache = new boolean[6];
 	private boolean savedStateHasMCMultiParts = false;
@@ -77,9 +78,9 @@ public class PipeRenderState implements IClientState {
 		}
 		DoubleCoordinates pos = new DoubleCoordinates(blockPos);
 		TileEntity tile = pos.getTileEntity(worldIn);
-		if(tile instanceof LogisticsTileGenericPipe) {
+		if (tile instanceof LogisticsTileGenericPipe) {
 			boolean hasParts = SimpleServiceLocator.mcmpProxy.hasParts((LogisticsTileGenericPipe) tile);
-			if(savedStateHasMCMultiParts != hasParts) {
+			if (savedStateHasMCMultiParts != hasParts) {
 				savedStateHasMCMultiParts = hasParts;
 				clearRenderCaches();
 			}

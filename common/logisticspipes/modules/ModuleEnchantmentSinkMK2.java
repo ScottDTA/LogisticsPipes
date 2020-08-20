@@ -4,6 +4,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nonnull;
+
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 
 import logisticspipes.gui.hud.modules.HUDSimpleFilterModule;
 import logisticspipes.interfaces.IClientInformationProvider;
@@ -11,9 +17,9 @@ import logisticspipes.interfaces.IHUDModuleHandler;
 import logisticspipes.interfaces.IHUDModuleRenderer;
 import logisticspipes.interfaces.IModuleInventoryReceive;
 import logisticspipes.interfaces.IModuleWatchReciver;
-import logisticspipes.modules.abstractmodules.LogisticsModule;
-import logisticspipes.modules.abstractmodules.LogisticsSimpleFilterModule;
 import logisticspipes.network.PacketHandler;
+import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
+import logisticspipes.network.abstractguis.ModuleInHandGuiProvider;
 import logisticspipes.network.packets.hud.HUDStartModuleWatchingPacket;
 import logisticspipes.network.packets.hud.HUDStopModuleWatchingPacket;
 import logisticspipes.network.packets.module.ModuleInventory;
@@ -28,13 +34,11 @@ import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierInventory;
 import logisticspipes.utils.item.ItemIdentifierStack;
-
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.nbt.NBTTagCompound;
+import network.rs485.logisticspipes.module.Gui;
+import network.rs485.logisticspipes.module.SimpleFilter;
 
 @CCType(name = "EnchantmentSink Module MK2")
-public class ModuleEnchantmentSinkMK2 extends LogisticsSimpleFilterModule implements IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, ISimpleInventoryEventHandler, IModuleInventoryReceive {
+public class ModuleEnchantmentSinkMK2 extends LogisticsModule implements SimpleFilter, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, ISimpleInventoryEventHandler, IModuleInventoryReceive, Gui {
 
 	private final ItemIdentifierInventory _filterInventory = new ItemIdentifierInventory(9, "Requested Enchanted items", 1);
 
@@ -46,8 +50,13 @@ public class ModuleEnchantmentSinkMK2 extends LogisticsSimpleFilterModule implem
 
 	private final PlayerCollectionList localModeWatchers = new PlayerCollectionList();
 
+	public static String getName() {
+		return "enchantment_sink_mk2";
+	}
+
 	@Override
 	@CCCommand(description = "Returns the FilterInventory of this Module")
+	@Nonnull
 	public ItemIdentifierInventory getFilterInventory() {
 		return _filterInventory;
 	}
@@ -61,12 +70,12 @@ public class ModuleEnchantmentSinkMK2 extends LogisticsSimpleFilterModule implem
 	}
 
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
+	public SinkReply sinksItem(@Nonnull ItemStack stack, ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit, boolean forcePassive) {
 		if (bestPriority > _sinkReply.fixedPriority.ordinal() || (bestPriority == _sinkReply.fixedPriority.ordinal() && bestCustomPriority >= _sinkReply.customPriority)) {
 			return null;
 		}
 		if (_filterInventory.containsExcludeNBTItem(item.getUndamaged().getIgnoringNBT())) {
-			if (item.makeNormalStack(1).isItemEnchanted()) {
+			if (stack.isItemEnchanted()) {
 				return _sinkReply;
 			}
 			return null;
@@ -75,17 +84,12 @@ public class ModuleEnchantmentSinkMK2 extends LogisticsSimpleFilterModule implem
 	}
 
 	@Override
-	public LogisticsModule getSubModule(int slot) {
-		return null;
-	}
-
-	@Override
-	public void readFromNBT(NBTTagCompound nbttagcompound) {
+	public void readFromNBT(@Nonnull NBTTagCompound nbttagcompound) {
 		_filterInventory.readFromNBT(nbttagcompound, "");
 	}
 
 	@Override
-	public void writeToNBT(NBTTagCompound nbttagcompound) {
+	public void writeToNBT(@Nonnull NBTTagCompound nbttagcompound) {
 		_filterInventory.writeToNBT(nbttagcompound, "");
 	}
 
@@ -93,7 +97,7 @@ public class ModuleEnchantmentSinkMK2 extends LogisticsSimpleFilterModule implem
 	public void tick() {}
 
 	@Override
-	public List<String> getClientInformation() {
+	public @Nonnull List<String> getClientInformation() {
 		List<String> list = new ArrayList<>();
 		list.add("Filter: ");
 		list.add("<inventory>");
@@ -150,15 +154,13 @@ public class ModuleEnchantmentSinkMK2 extends LogisticsSimpleFilterModule implem
 	}
 
 	@Override
-	public List<ItemIdentifier> getSpecificInterests() {
+	public void collectSpecificInterests(@Nonnull Collection<ItemIdentifier> itemidCollection) {
 		Map<ItemIdentifier, Integer> mapIC = _filterInventory.getItemsAndCount();
-		List<ItemIdentifier> li = new ArrayList<>(mapIC.size());
-		li.addAll(mapIC.keySet());
+		itemidCollection.addAll(mapIC.keySet());
 		for (ItemIdentifier id : mapIC.keySet()) {
-			li.add(id.getUndamaged());
-			li.add(id.getUndamaged().getIgnoringNBT());
+			itemidCollection.add(id.getUndamaged());
+			itemidCollection.add(id.getUndamaged().getIgnoringNBT());
 		}
-		return li;
 	}
 
 	@Override
@@ -180,4 +182,17 @@ public class ModuleEnchantmentSinkMK2 extends LogisticsSimpleFilterModule implem
 	public boolean hasEffect() {
 		return true;
 	}
+
+	@Nonnull
+	@Override
+	public ModuleCoordinatesGuiProvider getPipeGuiProvider() {
+		return SimpleFilter.getPipeGuiProvider();
+	}
+
+	@Nonnull
+	@Override
+	public ModuleInHandGuiProvider getInHandGuiProvider() {
+		return SimpleFilter.getInHandGuiProvider();
+	}
+
 }

@@ -1,12 +1,19 @@
 /**
  * Copyright (c) Krapht, 2011
- * 
  * "LogisticsPipes" is distributed under the terms of the Minecraft Mod Public
  * License 1.0, or MMPL. Please check the contents of the license located in
  * http://www.mod-buildcraft.com/MMPL-1.0.txt
  */
 
 package logisticspipes.gui;
+
+import java.io.IOException;
+
+import net.minecraft.client.gui.GuiButton;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.util.ResourceLocation;
+
+import org.lwjgl.opengl.GL11;
 
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.packets.module.ProviderPipeIncludePacket;
@@ -16,14 +23,6 @@ import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.gui.DummyContainer;
 import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
 import logisticspipes.utils.string.StringUtils;
-
-import net.minecraft.client.gui.GuiButton;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.util.ResourceLocation;
-
-import org.lwjgl.opengl.GL11;
-
-import java.io.IOException;
 
 public class GuiProviderPipe extends LogisticsBaseGuiScreen {
 
@@ -53,7 +52,6 @@ public class GuiProviderPipe extends LogisticsBaseGuiScreen {
 
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public void initGui() {
 		super.initGui();
@@ -66,7 +64,7 @@ public class GuiProviderPipe extends LogisticsBaseGuiScreen {
 	protected void actionPerformed(GuiButton guibutton) throws IOException {
 		if (guibutton.id == 0) {
 			logic.setFilterExcluded(!logic.isExcludeFilter());
-			((GuiButton) buttonList.get(0)).displayString = logic.isExcludeFilter() ? StringUtils.translate(GuiProviderPipe.PREFIX + "Exclude") : StringUtils.translate(GuiProviderPipe.PREFIX + "Include");
+			buttonList.get(0).displayString = logic.isExcludeFilter() ? StringUtils.translate(GuiProviderPipe.PREFIX + "Exclude") : StringUtils.translate(GuiProviderPipe.PREFIX + "Include");
 			MainProxy.sendPacketToServer(PacketHandler.getPacket(ProviderPipeIncludePacket.class).setPosX(logic.getX()).setPosY(logic.getY()).setPosZ(logic.getZ()));
 		} else if (guibutton.id == 1) {
 			logic.nextExtractionMode();
@@ -76,7 +74,7 @@ public class GuiProviderPipe extends LogisticsBaseGuiScreen {
 	}
 
 	public void refreshInclude() {
-		((GuiButton) buttonList.get(0)).displayString = logic.isExcludeFilter() ? StringUtils.translate(GuiProviderPipe.PREFIX + "Exclude") : StringUtils.translate(GuiProviderPipe.PREFIX + "Include");
+		buttonList.get(0).displayString = logic.isExcludeFilter() ? StringUtils.translate(GuiProviderPipe.PREFIX + "Exclude") : StringUtils.translate(GuiProviderPipe.PREFIX + "Include");
 	}
 
 	@Override

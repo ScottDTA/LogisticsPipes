@@ -1,28 +1,26 @@
 package logisticspipes.routing;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
 
-import logisticspipes.LPConstants;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+
+import logisticspipes.LogisticsPipes;
 import logisticspipes.api.ILogisticsPowerProvider;
 import logisticspipes.interfaces.ISubSystemPowerProvider;
 import logisticspipes.interfaces.routing.IFilter;
-import logisticspipes.modules.abstractmodules.LogisticsModule;
+import logisticspipes.modules.LogisticsModule;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.item.ItemIdentifier;
-import network.rs485.logisticspipes.world.DoubleCoordinates;
 import logisticspipes.utils.tuples.Pair;
-
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-
-import net.minecraft.util.EnumFacing;
+import network.rs485.logisticspipes.world.DoubleCoordinates;
 
 public class ClientRouter implements IRouter {
 
@@ -45,13 +43,11 @@ public class ClientRouter implements IRouter {
 	}
 
 	@Override
-	public void update(boolean doFullRefresh, CoreRoutedPipe pipe) {
-
-	}
+	public void update(boolean doFullRefresh, CoreRoutedPipe pipe) {}
 
 	@Override
 	public boolean isRoutedExit(EnumFacing connection) {
-		if (LPConstants.DEBUG) {
+		if (LogisticsPipes.isDEBUG()) {
 			throw new UnsupportedOperationException("noClientRouting");
 		}
 		return false;
@@ -59,7 +55,7 @@ public class ClientRouter implements IRouter {
 
 	@Override
 	public boolean hasRoute(int id, boolean flag, ItemIdentifier item) {
-		if (LPConstants.DEBUG) {
+		if (LogisticsPipes.isDEBUG()) {
 			throw new UnsupportedOperationException("noClientRouting");
 		}
 		return false;
@@ -67,7 +63,7 @@ public class ClientRouter implements IRouter {
 
 	@Override
 	public ExitRoute getExitFor(int id, boolean flag, ItemIdentifier item) {
-		if (LPConstants.DEBUG) {
+		if (LogisticsPipes.isDEBUG()) {
 			throw new UnsupportedOperationException("noClientRouting");
 		}
 		return null;
@@ -75,7 +71,7 @@ public class ClientRouter implements IRouter {
 
 	@Override
 	public ArrayList<List<ExitRoute>> getRouteTable() {
-		if (LPConstants.DEBUG) {
+		if (LogisticsPipes.isDEBUG()) {
 			throw new UnsupportedOperationException("noClientRouting");
 		}
 		return new ArrayList<>();
@@ -83,7 +79,7 @@ public class ClientRouter implements IRouter {
 
 	@Override
 	public List<ExitRoute> getIRoutersByCost() {
-		if (LPConstants.DEBUG) {
+		if (LogisticsPipes.isDEBUG()) {
 			throw new UnsupportedOperationException("noClientRouting");
 		}
 		return new LinkedList<>();
@@ -142,9 +138,7 @@ public class ClientRouter implements IRouter {
 	}
 
 	@Override
-	public void clearPipeCache() {
-		//Not On Client Side
-	}
+	public void clearPipeCache() {}
 
 	@Override
 	public List<Pair<ILogisticsPowerProvider, List<IFilter>>> getPowerProvider() {
@@ -152,28 +146,8 @@ public class ClientRouter implements IRouter {
 	}
 
 	@Override
-	public void act(BitSet hasBeenProcessed, IRAction actor) {
-
-	}
-
-	@Override
-	public void flagForRoutingUpdate() {
-
-	}
-
-	@Override
-	public boolean checkAdjacentUpdate() {
+	public boolean isSideDisconnected(EnumFacing dir) {
 		return false;
-	}
-
-	@Override
-	public boolean isSideDisconneceted(EnumFacing dir) {
-		return false;
-	}
-
-	@Override
-	public void updateInterests() {
-
 	}
 
 	@Override
@@ -182,13 +156,11 @@ public class ClientRouter implements IRouter {
 	}
 
 	@Override
-	public void clearInterests() {
-
-	}
+	public void clearInterests() {}
 
 	@Override
-	public boolean isValidCache() {
-		return true;
+	public boolean isCacheInvalid() {
+		return false;
 	}
 
 	@Override
@@ -206,25 +178,12 @@ public class ClientRouter implements IRouter {
 
 	@Override
 	public String toString() {
-		StringBuilder string = new StringBuilder("ServerRouter: {UUID: ");
-		string.append(getId());
-		string.append(", AT: (");
-		string.append(_xCoord);
-		string.append(", ");
-		string.append(_yCoord);
-		string.append(", ");
-		string.append(_zCoord);
-		return string.append(")").toString();
+		return String.format("ServerRouter: {UUID: %s, AT: (%d, %d, %d)}", getId(), _xCoord, _yCoord, _zCoord);
 	}
 
 	@Override
 	public List<ExitRoute> getRoutersOnSide(EnumFacing exitOrientation) {
 		return null;
-	}
-
-	@Override
-	public int getDimension() {
-		return 0;
 	}
 
 	@Override

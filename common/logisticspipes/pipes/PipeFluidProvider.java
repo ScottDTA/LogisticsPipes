@@ -1,13 +1,18 @@
 package logisticspipes.pipes;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
+
+import net.minecraft.item.Item;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
+
+import net.minecraftforge.fluids.FluidStack;
 
 import logisticspipes.interfaces.ISpecialTankAccessHandler;
 import logisticspipes.interfaces.ISpecialTankUtil;
@@ -34,12 +39,6 @@ import logisticspipes.utils.FluidIdentifierStack;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
 import logisticspipes.utils.tuples.Triplet;
-
-import net.minecraft.item.Item;
-import net.minecraft.tileentity.TileEntity;
-
-import net.minecraft.util.EnumFacing;
-import net.minecraftforge.fluids.FluidStack;
 
 public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids {
 
@@ -95,11 +94,11 @@ public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids
 							if (order.getFluid().equals(fluidStack.getFluid())) {
 								int amount = Math.min(fluidStack.getAmount(), amountToSend.get());
 								FluidIdentifierStack drained = util.drain(amount, false);
-								if (drained != null && drained.getAmount() > 0  && order.getFluid().equals(drained.getFluid())) {
+								if (drained != null && drained.getAmount() > 0 && order.getFluid().equals(drained.getFluid())) {
 									drained = util.drain(amount, true);
 									while (drained.getAmount() < amountToSend.get()) {
 										FluidIdentifierStack addition = util.drain(amountToSend.get() - drained.getAmount(), false);
-										if (addition != null && addition.getAmount() > 0  && order.getFluid().equals(addition.getFluid())) {
+										if (addition != null && addition.getAmount() > 0 && order.getFluid().equals(addition.getFluid())) {
 											addition = util.drain(amountToSend.get() - drained.getAmount(), true);
 											drained.raiseAmount(addition.getAmount());
 										} else {
@@ -179,11 +178,6 @@ public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids
 	}
 
 	@Override
-	public boolean disconnectPipe(TileEntity tile, EnumFacing dir) {
-		return SimpleServiceLocator.pipeInformationManager.isFluidPipe(tile);
-	}
-
-	@Override
 	public TextureType getCenterTexture() {
 		return Textures.LOGISTICSPIPE_LIQUID_PROVIDER;
 	}
@@ -255,8 +249,7 @@ public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids
 
 	@Override
 	//work in progress, currently not active code.
-	public Set<ItemIdentifier> getSpecificInterests() {
-		Set<ItemIdentifier> l1 = new TreeSet<>();
+	public void collectSpecificInterests(@Nonnull Collection<ItemIdentifier> itemidCollection) {
 		for (Triplet<ITankUtil, TileEntity, EnumFacing> pair : getAdjacentTanksAdvanced(false)) {
 			ITankUtil util = pair.getValue1();
 			boolean fallback = true;
@@ -264,10 +257,9 @@ public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids
 				fallback = false;
 				ISpecialTankAccessHandler handler = ((ISpecialTankUtil) util).getSpecialHandler();
 				TileEntity tile = ((ISpecialTankUtil) util).getTileEntity();
-				Map<FluidIdentifier, Long> map = handler.getAvailableLiquid(tile);
-				l1.addAll(map.keySet().stream()
-					.map(FluidIdentifier::getItemIdentifier)
-					.collect(Collectors.toList()));
+				handler.getAvailableLiquid(tile).keySet().stream()
+						.map(FluidIdentifier::getItemIdentifier)
+						.forEach(itemidCollection::add);
 			}
 			if (fallback) {
 				if (util.containsTanks()) {
@@ -276,7 +268,7 @@ public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids
 							if (util.canDrain(liquid.getFluid())) {
 								if (util.drain(1, false) != null) {
 									FluidIdentifier ident = liquid.getFluid();
-									l1.add(ident.getItemIdentifier());
+									itemidCollection.add(ident.getItemIdentifier());
 								}
 							}
 						}
@@ -284,7 +276,6 @@ public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids
 				}
 			}
 		}
-		return l1;
 	}
 
 	@Override

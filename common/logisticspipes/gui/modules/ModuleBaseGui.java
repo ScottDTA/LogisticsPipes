@@ -2,23 +2,23 @@ package logisticspipes.gui.modules;
 
 import java.io.IOException;
 
-import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
-import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
+import net.minecraft.inventory.Container;
+
+import lombok.Getter;
+
+import logisticspipes.modules.LogisticsModule;
+import logisticspipes.modules.LogisticsModule.ModulePositionType;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.packets.gui.GuiOpenChassie;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
 
-import net.minecraft.inventory.Container;
-
-import lombok.Getter;
-
 public abstract class ModuleBaseGui extends LogisticsBaseGuiScreen {
 
 	@Getter
-	protected LogisticsGuiModule module;
+	protected LogisticsModule module;
 
-	public ModuleBaseGui(Container par1Container, LogisticsGuiModule module) {
+	public ModuleBaseGui(Container par1Container, LogisticsModule module) {
 		super(par1Container);
 		this.module = module;
 	}
@@ -32,7 +32,7 @@ public abstract class ModuleBaseGui extends LogisticsBaseGuiScreen {
 		if (i == 1 || c == 'e') {
 			super.keyTyped(c, i);
 			if (module.getSlot() == ModulePositionType.SLOT) {
-				MainProxy.sendPacketToServer(PacketHandler.getPacket(GuiOpenChassie.class).setPosX(module.getX()).setPosY(module.getY()).setPosZ(module.getZ()));
+				MainProxy.sendPacketToServer(PacketHandler.getPacket(GuiOpenChassie.class).setBlockPos(module.getBlockPos()));
 			}
 		}
 	}

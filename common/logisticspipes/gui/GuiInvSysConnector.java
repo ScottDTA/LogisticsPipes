@@ -4,9 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
-import logisticspipes.LPItems;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -16,7 +14,6 @@ import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 
 import logisticspipes.interfaces.IGUIChannelInformationReceiver;
-import logisticspipes.items.LogisticsItemCard;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.packets.pipe.InvSysConContentRequest;
 import logisticspipes.network.packets.pipe.InvSysConOpenSelectChannelPopupPacket;
@@ -28,14 +25,12 @@ import logisticspipes.utils.Color;
 import logisticspipes.utils.gui.DummyContainer;
 import logisticspipes.utils.gui.GuiGraphics;
 import logisticspipes.utils.gui.InputBar;
-import logisticspipes.utils.gui.ItemDisplay;
 import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
 import logisticspipes.utils.gui.SmallGuiButton;
 import logisticspipes.utils.item.ItemIdentifierStack;
 import logisticspipes.utils.item.ItemStackRenderer;
 import logisticspipes.utils.item.ItemStackRenderer.DisplayAmount;
 import logisticspipes.utils.string.StringUtils;
-import logisticspipes.utils.tuples.Pair;
 
 public class GuiInvSysConnector extends LogisticsBaseGuiScreen implements IGUIChannelInformationReceiver {
 
@@ -59,9 +54,10 @@ public class GuiInvSysConnector extends LogisticsBaseGuiScreen implements IGUICh
 
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public void initGui() {
+		Keyboard.enableRepeatEvents(true);
+
 		super.initGui();
 		buttonList.clear();
 		buttonList.add(new SmallGuiButton(0, guiLeft + 120, guiTop + 67, 10, 10, "<"));
@@ -72,14 +68,20 @@ public class GuiInvSysConnector extends LogisticsBaseGuiScreen implements IGUICh
 		buttonList.add(new SmallGuiButton(5, guiLeft + 140, guiTop + 55, 30, 10, StringUtils.translate(GuiInvSysConnector.PREFIX + "Save")));
 		buttonList.add(new SmallGuiButton(6, guiLeft + 130, guiTop + 20, 40, 10, StringUtils.translate(GuiInvSysConnector.PREFIX + "Change")));
 
-		if(this.resistanceCountBar == null) {
+		if (this.resistanceCountBar == null) {
 			this.resistanceCountBar = new InputBar(this.fontRenderer, this, guiLeft + 90, guiTop + 55, 30, 12, false, true, InputBar.Align.CENTER);
-			this.resistanceCountBar.input1 = Integer.toString(pipe.resistance);
 			this.resistanceCountBar.minNumber = 0;
+			this.resistanceCountBar.setInteger(pipe.resistance);
 		}
 		this.resistanceCountBar.reposition(guiLeft + 90, guiTop + 55, 30, 12);
 
 		refreshPacket();
+	}
+
+	@Override
+	public void closeGui() throws IOException {
+		super.closeGui();
+		Keyboard.enableRepeatEvents(false);
 	}
 
 	@Override
@@ -89,11 +91,11 @@ public class GuiInvSysConnector extends LogisticsBaseGuiScreen implements IGUICh
 		mc.fontRenderer.drawString(StringUtils.translate(GuiInvSysConnector.PREFIX + "InventorySystemConnector"), guiLeft + 5, guiTop + 6, 0x404040);
 		drawRect(guiLeft + 9, guiTop + 78, guiLeft + 170, guiTop + 132, Color.GREY);
 		mc.fontRenderer.drawString(StringUtils.translate(GuiInvSysConnector.PREFIX + "ConnectionInformation") + ":", guiLeft + 10, guiTop + 21, 0x404040);
-		mc.fontRenderer.drawString(StringUtils.getCuttedString(StringUtils.translate(GuiInvSysConnector.PREFIX + "Channel") + ": " + (connectedChannel != null ?  connectedChannel.getName() : "UNDEFINED"), 150, this.fontRenderer), guiLeft + 15, guiTop + 38, 0x404040);
+		mc.fontRenderer.drawString(StringUtils.getCuttedString(StringUtils.translate(GuiInvSysConnector.PREFIX + "Channel") + ": " + (connectedChannel != null ? connectedChannel.getName() : "UNDEFINED"), 150, this.fontRenderer), guiLeft + 15, guiTop + 38, 0x404040);
 		mc.fontRenderer.drawString(StringUtils.translate(GuiInvSysConnector.PREFIX + "Waitingfor") + ":", guiLeft + 10, guiTop + 68, 0x404040);
 		mc.fontRenderer.drawString((page + 1) + "/" + maxPage(), guiLeft + 136, guiTop + 69, 0x404040);
 		mc.fontRenderer.drawString(StringUtils.translate(GuiInvSysConnector.PREFIX + "Resistance") + ":", guiLeft + 10, guiTop + 55, 0x404040);
-		resistanceCountBar.renderSearchBar();
+		resistanceCountBar.drawTextBox();
 	}
 
 	@Override
@@ -172,31 +174,11 @@ public class GuiInvSysConnector extends LogisticsBaseGuiScreen implements IGUICh
 		} else if (button.id == 2) {
 			refreshPacket();
 		} else if (button.id == 3) {
-			for (int i = 0; i < (Keyboard.isKeyDown(Keyboard.KEY_LCONTROL) ? 10 : 1); i++) {
-				int localresistance = 1;
-				try {
-					localresistance = Integer.valueOf(resistanceCountBar.input1 + resistanceCountBar.input2);
-				} catch (Exception ignored) {}
-				if (localresistance > 0) {
-					localresistance--;
-				}
-				resistanceCountBar.input1 = Integer.toString(localresistance);
-				resistanceCountBar.input2 = "";
-			}
+			resistanceCountBar.setInteger(resistanceCountBar.getInteger() - (Keyboard.isKeyDown(Keyboard.KEY_LCONTROL) ? 10 : 1));
 		} else if (button.id == 4) {
-			int localresistance = 1;
-			try {
-				localresistance = Integer.valueOf(resistanceCountBar.input1 + resistanceCountBar.input2);
-			} catch (Exception ignored) {}
-			localresistance++;
-			resistanceCountBar.input1 = Integer.toString(localresistance);
-			resistanceCountBar.input2 = "";
+			resistanceCountBar.setInteger(resistanceCountBar.getInteger() + 1);
 		} else if (button.id == 5) {
-			int localresistance = 1;
-			try {
-				localresistance = Integer.valueOf(resistanceCountBar.input1 + resistanceCountBar.input2);
-			} catch (Exception ignored) {}
-			pipe.resistance = localresistance;
+			pipe.resistance = resistanceCountBar.getInteger();
 			MainProxy.sendPacketToServer(PacketHandler.getPacket(InvSysConResistance.class).setInteger(pipe.resistance).setPosX(pipe.getX()).setPosY(pipe.getY()).setPosZ(pipe.getZ()));
 		} else if (button.id == 6) {
 			MainProxy.sendPacketToServer(PacketHandler.getPacket(InvSysConOpenSelectChannelPopupPacket.class).setTilePos(pipe.container));
@@ -205,14 +187,14 @@ public class GuiInvSysConnector extends LogisticsBaseGuiScreen implements IGUICh
 
 	@Override
 	protected void mouseClicked(int x, int y, int k) throws IOException {
-		if(!resistanceCountBar.handleClick(x, y, k)) {
+		if (!resistanceCountBar.handleClick(x, y, k)) {
 			super.mouseClicked(x, y, k);
 		}
 	}
 
 	@Override
 	public void keyTyped(char c, int i) throws IOException {
-		if(!resistanceCountBar.handleKey(c, i)) {
+		if (!resistanceCountBar.handleKey(c, i)) {
 			super.keyTyped(c, i);
 		}
 	}
@@ -223,16 +205,15 @@ public class GuiInvSysConnector extends LogisticsBaseGuiScreen implements IGUICh
 	}
 
 	public void handleResistanceAnswer(int resistance) {
-		resistanceCountBar.input1 = Integer.toString(resistance);
-		resistanceCountBar.input2 = "";
+		resistanceCountBar.setInteger(resistance);
 	}
 
 	@Override
 	public void handleChannelInformation(ChannelInformation channel, boolean flag) {
-		if(this.getSubGui() instanceof IGUIChannelInformationReceiver) {
+		if (this.getSubGui() instanceof IGUIChannelInformationReceiver) {
 			((IGUIChannelInformationReceiver) this.getSubGui()).handleChannelInformation(channel, flag);
 		}
-		if(flag) {
+		if (flag) {
 			this.connectedChannel = channel;
 		} else if (this.connectedChannel != null && this.connectedChannel.getChannelIdentifier().equals(channel.getChannelIdentifier())) {
 			this.connectedChannel = channel;

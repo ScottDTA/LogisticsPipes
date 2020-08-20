@@ -1,12 +1,12 @@
 package logisticspipes.proxy.interfaces;
 
-import logisticspipes.utils.item.ItemIdentifierInventory;
-
 import net.minecraft.tileentity.TileEntity;
+
+import logisticspipes.utils.item.ItemIdentifierInventory;
 
 public interface ICraftingRecipeProvider {
 
-	public boolean canOpenGui(TileEntity tile);
+	boolean canOpenGui(TileEntity tile);
 
-	public boolean importRecipe(TileEntity tile, ItemIdentifierInventory inventory);
+	boolean importRecipe(TileEntity tile, ItemIdentifierInventory inventory);
 }

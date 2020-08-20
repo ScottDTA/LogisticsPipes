@@ -1,26 +1,30 @@
 package logisticspipes.gui;
 
-import logisticspipes.LPItems;
-import logisticspipes.LogisticsPipes;
-import logisticspipes.config.PlayerConfig;
-import logisticspipes.utils.gui.DummyContainer;
-import logisticspipes.utils.gui.GuiCheckBox;
-import logisticspipes.utils.gui.LogisticsBaseTabGuiScreen;
-import logisticspipes.utils.gui.InputBar;
-import logisticspipes.utils.string.StringUtils;
-
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 
+import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
+import logisticspipes.LPItems;
+import logisticspipes.LogisticsPipes;
+import logisticspipes.network.PacketHandler;
+import logisticspipes.network.packets.PlayerConfigToServerPacket;
+import logisticspipes.proxy.MainProxy;
+import logisticspipes.utils.gui.DummyContainer;
+import logisticspipes.utils.gui.GuiCheckBox;
+import logisticspipes.utils.gui.InputBar;
+import logisticspipes.utils.gui.LogisticsBaseTabGuiScreen;
+import logisticspipes.utils.string.StringUtils;
+import network.rs485.logisticspipes.config.ClientConfiguration;
+
 public class GuiLogisticsSettings extends LogisticsBaseTabGuiScreen {
 
-	private final String PREFIX = "gui.settings.";
+	private static final String PREFIX = "gui.settings.";
 
 	public GuiLogisticsSettings(final EntityPlayer player) {
 		super(180, 220);
@@ -43,15 +47,17 @@ public class GuiLogisticsSettings extends LogisticsBaseTabGuiScreen {
 
 		@Override
 		public void initTab() {
-			PlayerConfig config = LogisticsPipes.getClientPlayerConfig();
+			Keyboard.enableRepeatEvents(true);
+
+			ClientConfiguration config = LogisticsPipes.getClientPlayerConfig();
 			if (renderDistance == null) {
 				renderDistance = new InputBar(fontRenderer, getBaseScreen(), 15, 75, 30, 15, false, true, InputBar.Align.RIGHT);
-				renderDistance.input1 = config.getRenderPipeDistance() + "";
+				renderDistance.setInteger(config.getRenderPipeDistance());
 			}
 			renderDistance.reposition(15, 80, 30, 15);
 			if (contentRenderDistance == null) {
 				contentRenderDistance = new InputBar(fontRenderer, getBaseScreen(), 15, 105, 30, 15, false, true, InputBar.Align.RIGHT);
-				contentRenderDistance.input1 = config.getRenderPipeContentDistance() + "";
+				contentRenderDistance.setInteger(config.getRenderPipeContentDistance());
 			}
 			contentRenderDistance.reposition(15, 110, 30, 15);
 			//useNewRendererButton = (GuiCheckBox) addButton(new GuiCheckBox(0, guiLeft + 15, guiTop + 30, 16, 16, config.isUseNewRenderer()));
@@ -87,8 +93,8 @@ public class GuiLogisticsSettings extends LogisticsBaseTabGuiScreen {
 
 		@Override
 		public void renderForgroundContent() {
-			renderDistance.renderSearchBar();
-			contentRenderDistance.renderSearchBar();
+			renderDistance.drawTextBox();
+			contentRenderDistance.drawTextBox();
 			//fontRenderer.drawString(StringUtils.translate(PREFIX + "pipenewrenderer"), 38, 34, 0x404040);
 			//fontRenderer.drawString(StringUtils.translate(PREFIX + "pipefallbackrenderer"), 38, 54, 0x404040);
 			fontRenderer.drawString(StringUtils.translate(PREFIX + "piperenderdistance"), 10, 70, 0x404040);
@@ -109,16 +115,19 @@ public class GuiLogisticsSettings extends LogisticsBaseTabGuiScreen {
 
 		@Override
 		public void guiClose() {
-			PlayerConfig config = LogisticsPipes.getClientPlayerConfig();
+			ClientConfiguration config = LogisticsPipes.getClientPlayerConfig();
 			try {
-				config.setRenderPipeDistance(Integer.valueOf(renderDistance.getContent()));
-				config.setRenderPipeContentDistance(Integer.valueOf(contentRenderDistance.getContent()));
+				config.setRenderPipeDistance(renderDistance.getInteger());
+				config.setRenderPipeContentDistance(contentRenderDistance.getInteger());
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 			//config.setUseNewRenderer(useNewRendererButton.getState());
 			//config.setUseFallbackRenderer(useFallbackRendererButton.getState());
-			config.sendUpdate();
+
+			MainProxy.sendPacketToServer(
+					PacketHandler.getPacket(PlayerConfigToServerPacket.class).setConfig(config));
+
 		}
 	}
 }

@@ -1,15 +1,15 @@
 package logisticspipes.gui.hud;
 
+import net.minecraft.client.Minecraft;
+
+import org.lwjgl.opengl.GL11;
+
 import logisticspipes.interfaces.IHUDConfig;
 import logisticspipes.pipes.PipeItemsProviderLogistics;
 import logisticspipes.utils.gui.GuiGraphics;
 import logisticspipes.utils.gui.hud.BasicHUDButton;
 import logisticspipes.utils.item.ItemStackRenderer;
 import logisticspipes.utils.item.ItemStackRenderer.DisplayAmount;
-
-import net.minecraft.client.Minecraft;
-
-import org.lwjgl.opengl.GL11;
 
 public class HUDProvider extends BasicHUDGui {
 
@@ -125,9 +125,9 @@ public class HUDProvider extends BasicHUDGui {
 		ItemStackRenderer.renderItemIdentifierStackListIntoGui(pipe.displayList, null, page, -36, -37, 4, 12, 18, 18, itemStackRenderer);
 		ItemStackRenderer.renderItemIdentifierStackListIntoGui(pipe.itemListOrderer, null, pageB, -36, 23, 4, 4, 18, 18, itemStackRenderer);
 		GL11.glScalef(0.875F, 0.875F, -1F);
-		String message = "(" + Integer.toString(page + 1) + "/" + Integer.toString(getMaxPage()) + ")";
+		String message = String.format("(%d/%d)", page + 1, getMaxPage());
 		mc.fontRenderer.drawString(message, 9, -50, 0);
-		message = "(" + Integer.toString(pageB + 1) + "/" + Integer.toString(getMaxPageOrderer()) + ")";
+		message = String.format("(%d/%d)", pageB + 1, getMaxPageOrderer());
 		mc.fontRenderer.drawString(message, 9, 23, 0);
 	}
 

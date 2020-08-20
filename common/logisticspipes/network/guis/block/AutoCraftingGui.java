@@ -6,12 +6,11 @@ import logisticspipes.blocks.crafting.LogisticsCraftingTableTileEntity;
 import logisticspipes.gui.GuiLogisticsCraftingTable;
 import logisticspipes.network.abstractguis.CoordinatesGuiProvider;
 import logisticspipes.network.abstractguis.GuiProvider;
+import logisticspipes.utils.StaticResolve;
 import logisticspipes.utils.gui.DummyContainer;
 import logisticspipes.utils.item.ItemIdentifier;
 import network.rs485.logisticspipes.util.LPDataInput;
 import network.rs485.logisticspipes.util.LPDataOutput;
-
-import logisticspipes.utils.StaticResolve;
 
 @StaticResolve
 public class AutoCraftingGui extends CoordinatesGuiProvider {
@@ -29,10 +28,7 @@ public class AutoCraftingGui extends CoordinatesGuiProvider {
 
 	@Override
 	public Object getClientGui(EntityPlayer player) {
-		LogisticsCraftingTableTileEntity tile = this.getTile(player.getEntityWorld(), LogisticsCraftingTableTileEntity.class);
-		if (tile == null) {
-			return null;
-		}
+		LogisticsCraftingTableTileEntity tile = getTileAs(player.world, LogisticsCraftingTableTileEntity.class);
 		if (tile.isFuzzy()) {
 			for (int i = 0; i < 9; i++) {
 				tile.fuzzyFlags[i].ignore_dmg = ignore_dmg[i];
@@ -47,10 +43,7 @@ public class AutoCraftingGui extends CoordinatesGuiProvider {
 
 	@Override
 	public DummyContainer getContainer(EntityPlayer player) {
-		LogisticsCraftingTableTileEntity tile = this.getTile(player.getEntityWorld(), LogisticsCraftingTableTileEntity.class);
-		if (tile == null) {
-			return null;
-		}
+		LogisticsCraftingTableTileEntity tile = getTileAs(player.world, LogisticsCraftingTableTileEntity.class);
 		DummyContainer dummy = new DummyContainer(player, tile.matrix, tile);
 
 		for (int X = 0; X < 3; X++) {

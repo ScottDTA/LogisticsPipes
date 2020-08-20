@@ -6,12 +6,22 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
+
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidUtil;
+
 import logisticspipes.LogisticsPipes;
 import logisticspipes.interfaces.ITankUtil;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.interfaces.routing.IRequestItems;
 import logisticspipes.interfaces.routing.IRequireReliableTransport;
-import logisticspipes.modules.abstractmodules.LogisticsModule;
+import logisticspipes.modules.LogisticsModule;
 import logisticspipes.network.GuiIDs;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.MainProxy;
@@ -27,18 +37,6 @@ import logisticspipes.utils.FluidIdentifierStack;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierInventory;
 import logisticspipes.utils.item.ItemIdentifierStack;
-
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
-
-import net.minecraft.util.EnumFacing;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidTankInfo;
-import net.minecraftforge.fluids.FluidUtil;
-
 import network.rs485.logisticspipes.world.WorldCoordinatesWrapper;
 
 public class PipeItemsFluidSupplier extends CoreRoutedPipe implements IRequestItems, IRequireReliableTransport {
@@ -123,7 +121,7 @@ public class PipeItemsFluidSupplier extends CoreRoutedPipe implements IRequestIt
 			data.getItemIdentifierStack().lowerStackSize(1);
 			Item item = data.getItemIdentifierStack().getItem().item;
 			if (item.hasContainerItem(data.getItemIdentifierStack().makeNormalStack())) {
-				Item containerItem = item.getContainerItem();
+				Item containerItem = Objects.requireNonNull(item.getContainerItem());
 				transport.sendItem(new ItemStack(containerItem, 1));
 			}
 		}
@@ -152,13 +150,11 @@ public class PipeItemsFluidSupplier extends CoreRoutedPipe implements IRequestIt
 		}
 		super.throttledUpdateEntity();
 
-		//@formatter:off
-		Iterator<ITankUtil> iterator = new WorldCoordinatesWrapper(container).getConnectedAdjacentTileEntities()
-				.filter(adjacent -> !SimpleServiceLocator.pipeInformationManager.isItemPipe(adjacent.tileEntity))
-				.map(adjacent -> SimpleServiceLocator.tankUtilFactory.getTankUtilForTE(adjacent.tileEntity, adjacent.direction))
+		Iterator<ITankUtil> iterator = new WorldCoordinatesWrapper(container).connectedTileEntities()
+				.filter(adjacent -> !SimpleServiceLocator.pipeInformationManager.isItemPipe(adjacent.getTileEntity()))
+				.map(adjacent -> SimpleServiceLocator.tankUtilFactory.getTankUtilForTE(adjacent.getTileEntity(), adjacent.getDirection()))
 				.filter(Objects::nonNull)
 				.iterator();
-		//@formatter:on
 
 		while (iterator.hasNext()) {
 			ITankUtil next = iterator.next();

@@ -1,6 +1,5 @@
 /**
  * Copyright (c) Krapht, 2011
- * 
  * "LogisticsPipes" is distributed under the terms of the Minecraft Mod Public
  * License 1.0, or MMPL. Please check the contents of the license located in
  * http://www.mod-buildcraft.com/MMPL-1.0.txt
@@ -8,10 +7,10 @@
 
 package logisticspipes.utils.gui;
 
-import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
+import javax.annotation.Nonnull;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -27,7 +26,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import logisticspipes.LPConstants;
+import logisticspipes.LogisticsPipes;
 import logisticspipes.interfaces.IFuzzySlot;
 import logisticspipes.interfaces.IGuiOpenControler;
 import logisticspipes.interfaces.ISlotCheck;
@@ -81,13 +80,13 @@ public class DummyContainer extends Container {
 	}
 
 	@Override
-	public boolean canInteractWith(EntityPlayer entityplayer) {
+	public boolean canInteractWith(@Nonnull EntityPlayer entityplayer) {
 		return true;
 	}
 
 	/***
 	 * Adds all slots for the player inventory and hotbar
-	 * 
+	 *
 	 * @param xOffset
 	 * @param yOffset
 	 */
@@ -114,7 +113,7 @@ public class DummyContainer extends Container {
 
 	/**
 	 * Add a dummy slot that will not consume players items
-	 * 
+	 *
 	 * @param slotId
 	 *            The slot number in the dummy IInventory this slot should map
 	 * @param xCoord
@@ -194,6 +193,7 @@ public class DummyContainer extends Container {
 		return slot;
 	}
 
+	@Nonnull
 	@Override
 	public ItemStack transferStackInSlot(EntityPlayer pl, int i) {
 		if (transferTop.isEmpty() || transferBottom.isEmpty()) {
@@ -231,27 +231,27 @@ public class DummyContainer extends Container {
 		ItemStack out = from.getStack();
 		if (!to.getHasStack() && !ignoreEmpty && to.isItemValid(out)) {
 			boolean remove = true;
-			if(out.getCount() > to.getSlotStackLimit()) {
+			if (out.getCount() > to.getSlotStackLimit()) {
 				out = from.decrStackSize(to.getSlotStackLimit());
 				remove = false;
 			}
 			to.putStack(from.onTake(player, out));
-			if(remove) {
+			if (remove) {
 				from.putStack(ItemStack.EMPTY);
 			}
 			return true;
 		}
-		if(from instanceof ModuleSlot || to instanceof ModuleSlot) {
+		if (from instanceof ModuleSlot || to instanceof ModuleSlot) {
 			return false;
 		}
 		out = from.onTake(player, out);
 		if (to.getHasStack() && to.getStack().isItemEqual(out) && ItemStack.areItemStackTagsEqual(to.getStack(), from.getStack())) {
 			int free = Math.min(to.getSlotStackLimit(), to.getStack().getMaxStackSize()) - to.getStack().getCount();
-			if(free > 0) {
+			if (free > 0) {
 				ItemStack toInsert = from.decrStackSize(free);
 				toInsert = from.onTake(player, toInsert);
 				ItemStack toStack = to.getStack();
-				if(!toInsert.isEmpty() && !toStack.isEmpty()) {
+				if (!toInsert.isEmpty() && !toStack.isEmpty()) {
 					toStack.grow(toInsert.getCount());
 					to.putStack(toStack);
 					return !from.getHasStack();
@@ -261,7 +261,7 @@ public class DummyContainer extends Container {
 		return false;
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Nonnull
 	public ItemStack superSlotClick(int slotId, int dragType, ClickType clickTypeIn, EntityPlayer player) {
 		ItemStack itemstack = ItemStack.EMPTY;
 		InventoryPlayer inventoryplayer = player.inventory;
@@ -444,7 +444,7 @@ public class DummyContainer extends Container {
 				if (itemstack6.isEmpty()) {
 					if (slot4.canTakeStack(player)) {
 						inventoryplayer.setInventorySlotContents(dragType, itemstack10);
-						ReflectionHelper.invokePrivateMethod(Slot.class, slot4, "onSwapCraft", "func_190900_b", new Class[]{int.class}, new Object[] {itemstack10.getCount()});
+						ReflectionHelper.invokePrivateMethod(Slot.class, slot4, "onSwapCraft", "func_190900_b", new Class[] { int.class }, new Object[] { itemstack10.getCount() });
 						slot4.putStack(ItemStack.EMPTY);
 						slot4.onTake(player, itemstack10);
 					}
@@ -530,44 +530,38 @@ public class DummyContainer extends Container {
 		return itemstack;
 	}
 
-	private void handleSwitch(Slot slot2, ItemStack out, ItemStack in, EntityPlayer player) {
-		if(slot2 instanceof ModuleSlot) {
-			ChassiModule logisticsModule = (ChassiModule) ((ModuleSlot) slot2).get_pipe().getLogisticsModule();
+	private void handleSwitch(Slot slot2, @Nonnull ItemStack out, @Nonnull ItemStack in, EntityPlayer player) {
+		if (slot2 instanceof ModuleSlot) {
+			ChassiModule chassis = (ChassiModule) ((ModuleSlot) slot2).get_pipe().getLogisticsModule();
 			int moduleIndex = ((ModuleSlot) slot2).get_moduleIndex();
 			if (out.getItem() instanceof ItemModule) {
-				ItemModuleInformationManager.saveInfotmation(out, logisticsModule.getSubModule(moduleIndex));
-				if (logisticsModule.hasModule(moduleIndex)) {
-					logisticsModule.removeModule(moduleIndex);
+				if (chassis.hasModule(moduleIndex)) {
+					ItemModuleInformationManager.saveInformation(out, chassis.getModule(moduleIndex));
+					chassis.removeModule(moduleIndex);
 				}
 			}
 		}
 	}
 
-	private boolean areEqualForMerge(ItemStack itemstack3, ItemStack itemstack4, Slot slot) {
-		if(slot instanceof ModuleSlot) {
-			return false;
-		}
-		return ItemStack.areItemStackTagsEqual(itemstack3, itemstack4);
-	}
-
 	/**
 	 * Clone/clear itemstacks for items
 	 */
+	@Nonnull
 	@Override
 	public ItemStack slotClick(int slotId, int mouseButton, ClickType shiftMode, EntityPlayer entityplayer) {
 		lastClicked = System.currentTimeMillis();
 		if (slotId < 0) {
 			return superSlotClick(slotId, mouseButton, shiftMode, entityplayer);
 		}
-		Slot slot = (Slot) inventorySlots.get(slotId);
+		Slot slot = inventorySlots.get(slotId);
 		//debug dump
-		if (LPConstants.DEBUG && slot != null) {
+		if (LogisticsPipes.isDEBUG() && slot != null) {
 			ItemStack stack = slot.getStack();
 			if (!stack.isEmpty()) {
 				ItemIdentifier.get(stack).debugDumpData(entityplayer.world.isRemote);
 			}
 		}
-		if (slot == null || (!(slot instanceof DummySlot) && !(slot instanceof UnmodifiableSlot) && !(slot instanceof FluidSlot) && !(slot instanceof ColorSlot) && !(slot instanceof HandelableSlot))) {
+		if ((!(slot instanceof DummySlot) && !(slot instanceof UnmodifiableSlot) && !(slot instanceof FluidSlot) && !(slot instanceof ColorSlot) && !(slot instanceof HandelableSlot))) {
 			ItemStack stack1 = superSlotClick(slotId, mouseButton, shiftMode, entityplayer);
 			ItemStack stack2 = slot.getStack();
 			if (!stack2.isEmpty() && stack2.getItem() instanceof ItemModule) {
@@ -659,7 +653,23 @@ public class DummyContainer extends Container {
 			((DummySlot) slot).setRedirectCall(true);
 		}
 
-		if (currentlyEquippedStack == null) {
+		if (mouseButton >= 1000) {
+			if (mouseButton <= 1001) {
+				if (!slot.getStack().isEmpty()) {
+					ItemStack stack = slot.getStack();
+					if (mouseButton == 1000) {
+						stack.grow(1);
+					} else if (stack.getCount() > 1) {
+						stack.shrink(1);
+					}
+					stack.setCount(Math.min(slot.getSlotStackLimit(), Math.max(1, stack.getCount())));
+					slot.putStack(stack);
+				}
+			}
+			return;
+		}
+
+		if (currentlyEquippedStack.isEmpty()) {
 			if (!slot.getStack().isEmpty() && mouseButton == 1) {
 				ItemStack tstack = slot.getStack();
 				if (shiftMode == ClickType.QUICK_MOVE) {
@@ -778,7 +788,7 @@ public class DummyContainer extends Container {
 
 	// Hacky overrides to handle client/server player inv sync with 0-slot containers
 	@Override
-	public Slot getSlotFromInventory(IInventory par1IInventory, int par2) {
+	public Slot getSlotFromInventory(@Nonnull IInventory par1IInventory, int par2) {
 		Slot s = super.getSlotFromInventory(par1IInventory, par2);
 		if (s != null) {
 			return s;
@@ -792,7 +802,7 @@ public class DummyContainer extends Container {
 	}
 
 	@Override
-	public void putStackInSlot(int par1, ItemStack par2ItemStack) {
+	public void putStackInSlot(int par1, @Nonnull ItemStack par2ItemStack) {
 		if (inventorySlots.isEmpty()) {
 			_playerInventory.setInventorySlotContents(par1, par2ItemStack);
 			_playerInventory.markDirty();
@@ -802,26 +812,25 @@ public class DummyContainer extends Container {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void detectAndSendChanges() {
 		for (int i = 0; i < inventorySlots.size(); ++i) {
-			if(inventorySlots.get(i) instanceof IFuzzySlot) {
+			if (inventorySlots.get(i) instanceof IFuzzySlot) {
 				IFuzzySlot fuzzySlot = (IFuzzySlot) inventorySlots.get(i);
 				BitSet set = inventoryFuzzySlotsContent.get(i);
-				if(set == null) {
+				if (set == null) {
 					set = fuzzySlot.getFuzzyFlags().getBitSet();
-					MainProxy.sendToPlayerList(PacketHandler.getPacket(FuzzySlotSettingsPacket.class).setSlotNumber(fuzzySlot.getSlotId()).setFlags(set), listeners.stream().filter(o -> o instanceof EntityPlayer).map(o -> (EntityPlayer)o));
+					MainProxy.sendToPlayerList(PacketHandler.getPacket(FuzzySlotSettingsPacket.class).setSlotNumber(fuzzySlot.getSlotId()).setFlags(set), listeners.stream().filter(o -> o instanceof EntityPlayer).map(o -> (EntityPlayer) o));
 					inventoryFuzzySlotsContent.set(i, set);
 				} else {
 					BitSet setB = fuzzySlot.getFuzzyFlags().getBitSet();
-					if(!set.equals(setB)) {
-						MainProxy.sendToPlayerList(PacketHandler.getPacket(FuzzySlotSettingsPacket.class).setSlotNumber(fuzzySlot.getSlotId()).setFlags(setB), listeners.stream().filter(o -> o instanceof EntityPlayer).map(o -> (EntityPlayer)o));
+					if (!set.equals(setB)) {
+						MainProxy.sendToPlayerList(PacketHandler.getPacket(FuzzySlotSettingsPacket.class).setSlotNumber(fuzzySlot.getSlotId()).setFlags(setB), listeners.stream().filter(o -> o instanceof EntityPlayer).map(o -> (EntityPlayer) o));
 						inventoryFuzzySlotsContent.set(i, setB);
 					}
 				}
 			}
-			ItemStack itemstack = ((Slot) inventorySlots.get(i)).getStack();
-			ItemStack itemstack1 = (ItemStack) inventoryItemStacks.get(i);
+			ItemStack itemstack = inventorySlots.get(i).getStack();
+			ItemStack itemstack1 = inventoryItemStacks.get(i);
 
 			if (!ItemStack.areItemStacksEqual(itemstack1, itemstack)) {
 				itemstack1 = itemstack.isEmpty() ? ItemStack.EMPTY : itemstack.copy();
@@ -843,9 +852,10 @@ public class DummyContainer extends Container {
 		overrideMCAntiSend = false;
 	}
 
+	@Nonnull
 	@Override
-	protected Slot addSlotToContainer(Slot p_75146_1_) {
+	protected Slot addSlotToContainer(@Nonnull Slot slotIn) {
 		this.inventoryFuzzySlotsContent.add(null);
-		return super.addSlotToContainer(p_75146_1_);
+		return super.addSlotToContainer(slotIn);
 	}
 }

@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import javax.annotation.Nonnull;
 
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.item.ItemStack;
@@ -40,21 +41,21 @@ public final class StringUtils {
 					colors.addAll(Arrays.asList(values));
 					int i = 0;
 					outer:
-						while (iter.hasNext() && !colors.isEmpty()) {
-							Character c3 = iter.next();
-							handled.append(c3);
-							Iterator<ChatColor> colorIter = colors.iterator();
-							while (colorIter.hasNext()) {
-								ChatColor color = colorIter.next();
-								if (color.name().length() <= i) {
-									break outer;
-								}
-								if (c3.charValue() != color.name().charAt(i)) {
-									colorIter.remove();
-								}
+					while (iter.hasNext() && !colors.isEmpty()) {
+						Character c3 = iter.next();
+						handled.append(c3);
+						Iterator<ChatColor> colorIter = colors.iterator();
+						while (colorIter.hasNext()) {
+							ChatColor color = colorIter.next();
+							if (color.name().length() <= i) {
+								break outer;
 							}
-							i++;
+							if (c3.charValue() != color.name().charAt(i)) {
+								colorIter.remove();
+							}
 						}
+						i++;
+					}
 					if (!colors.isEmpty()) {
 						ChatColor color = colors.get(0);
 						builder.append(color.toString());
@@ -80,7 +81,7 @@ public final class StringUtils {
 		return result;
 	}
 
-	public static void addShiftAddition(ItemStack stack, List<String> list) {
+	public static void addShiftAddition(@Nonnull ItemStack stack, List<String> list) {
 		if (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT)) {
 			String baseKey = MessageFormat.format("{0}.tip", stack.getItem().getUnlocalizedName(stack));
 			String key = baseKey + 1;
@@ -110,10 +111,12 @@ public final class StringUtils {
 			s = stackSize + "";
 		} else if (stackSize < 100000) {
 			s = stackSize / 1000 + "K";
-		} else if (stackSize < 1000000) {
-			s = "0M" + stackSize / 100000;
-		} else {
+		} else if (stackSize < 10000000) {
+			s = stackSize / 1000000 + "M" + (stackSize % 1000000) / 100000;
+		} else if (stackSize < 100000000) {
 			s = stackSize / 1000000 + "M";
+		} else {
+			s = stackSize / 1000000000 + "G" + (stackSize % 1000000000) / 100000000;
 		}
 		return s;
 	}
@@ -127,7 +130,7 @@ public final class StringUtils {
 		}
 		value *= 100;
 		int percent = (int) value;
-		return Integer.toString(percent) + "%";
+		return percent + "%";
 	}
 
 	public static String getWithMaxWidth(String name, int width, FontRenderer fontRenderer) {

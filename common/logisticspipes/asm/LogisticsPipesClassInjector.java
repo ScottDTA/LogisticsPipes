@@ -4,20 +4,20 @@ import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import javax.xml.bind.DatatypeConverter;
 
-import logisticspipes.LPConstants;
-import logisticspipes.proxy.computers.wrapper.CCObjectWrapper;
-import logisticspipes.proxy.opencomputers.asm.ClassCreator;
-
-import logisticspipes.utils.ModStatusHelper;
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.Launch;
 import net.minecraft.launchwrapper.LaunchClassLoader;
+
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
 
-import javax.xml.bind.DatatypeConverter;
+import logisticspipes.LogisticsPipes;
+import logisticspipes.proxy.computers.wrapper.CCObjectWrapper;
+import logisticspipes.proxy.opencomputers.asm.ClassCreator;
+import logisticspipes.utils.ModStatusHelper;
 
 public class LogisticsPipesClassInjector implements IClassTransformer {
 
@@ -46,10 +46,10 @@ public class LogisticsPipesClassInjector implements IClassTransformer {
 								String classData = a.values.get(5).toString();
 								String classDataDev = a.values.get(7).toString();
 								if (ModStatusHelper.isModLoaded(modId) && !ModStatusHelper.isModVersionEqualsOrHigher(modId, version)) {
-									if(isObfEnv == null) {
+									if (isObfEnv == null) {
 										try {
 											isObfEnv = (Class.forName("net.minecraft.world.World").getDeclaredField("chunkProvider") == null);
-										} catch(Throwable e) {
+										} catch (Throwable e) {
 											isObfEnv = true;
 										}
 									}
@@ -77,7 +77,7 @@ public class LogisticsPipesClassInjector implements IClassTransformer {
 				return bytes;
 			}
 		} catch (Exception e) {
-			if (LPConstants.DEBUG) { // For better Debugging
+			if (LogisticsPipes.isDEBUG()) { // For better Debugging
 				e.printStackTrace();
 				return bytes;
 			}

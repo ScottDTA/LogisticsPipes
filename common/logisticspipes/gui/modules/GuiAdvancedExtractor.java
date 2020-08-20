@@ -1,6 +1,5 @@
 /**
  * Copyright (c) Krapht, 2011
- * 
  * "LogisticsPipes" is distributed under the terms of the Minecraft Mod Public
  * License 1.0, or MMPL. Please check the contents of the license located in
  * http://www.mod-buildcraft.com/MMPL-1.0.txt
@@ -8,9 +7,11 @@
 
 package logisticspipes.gui.modules;
 
-import java.io.IOException;
+import net.minecraft.client.gui.GuiButton;
+import net.minecraft.inventory.IInventory;
 
-import logisticspipes.modules.ModuleAdvancedExtractor;
+import org.lwjgl.opengl.GL11;
+
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.packets.module.AdvancedExtractorIncludePacket;
 import logisticspipes.network.packets.module.AdvancedExtractorSneakyGuiPacket;
@@ -18,23 +19,18 @@ import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.gui.DummyContainer;
 import logisticspipes.utils.gui.GuiStringHandlerButton;
 import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
-
-import net.minecraft.client.gui.GuiButton;
-import net.minecraft.inventory.IInventory;
-
-import org.lwjgl.opengl.GL11;
+import network.rs485.logisticspipes.module.AsyncAdvancedExtractor;
 
 public class GuiAdvancedExtractor extends ModuleBaseGui {
 
-	private final ModuleAdvancedExtractor _advancedExtractor;
+	private final AsyncAdvancedExtractor _advancedExtractor;
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public void initGui() {
 		super.initGui();
 		//Default item toggle:
 		buttonList.clear();
-		buttonList.add(new GuiStringHandlerButton(0, width / 2 + 20, height / 2 - 34, 60, 20, () -> _advancedExtractor.areItemsIncluded() ? "Included" : "Excluded"));
+		buttonList.add(new GuiStringHandlerButton(0, width / 2 + 20, height / 2 - 34, 60, 20, () -> _advancedExtractor.getItemsIncluded() ? "Included" : "Excluded"));
 
 		buttonList.add(new GuiButton(1, width / 2 - 25, height / 2 - 34, 40, 20, "Sneaky"));
 	}
@@ -43,7 +39,7 @@ public class GuiAdvancedExtractor extends ModuleBaseGui {
 	protected void actionPerformed(GuiButton guibutton) {
 		switch (guibutton.id) {
 			case 0:
-				_advancedExtractor.setItemsIncluded(!_advancedExtractor.areItemsIncluded());
+				_advancedExtractor.setItemsIncluded(!_advancedExtractor.getItemsIncluded());
 				MainProxy.sendPacketToServer(PacketHandler.getPacket(AdvancedExtractorIncludePacket.class).setModulePos(_advancedExtractor));
 				break;
 			case 1:
@@ -53,7 +49,7 @@ public class GuiAdvancedExtractor extends ModuleBaseGui {
 
 	}
 
-	public GuiAdvancedExtractor(IInventory playerInventory, ModuleAdvancedExtractor advancedExtractor) {
+	public GuiAdvancedExtractor(IInventory playerInventory, AsyncAdvancedExtractor advancedExtractor) {
 		super(null, advancedExtractor);
 		_advancedExtractor = advancedExtractor;
 		DummyContainer dummy = new DummyContainer(playerInventory, _advancedExtractor.getFilterInventory());

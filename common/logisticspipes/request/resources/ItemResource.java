@@ -1,5 +1,7 @@
 package logisticspipes.request.resources;
 
+import javax.annotation.Nonnull;
+
 import logisticspipes.interfaces.routing.IRequestItems;
 import logisticspipes.routing.IRouter;
 import logisticspipes.utils.item.ItemIdentifier;
@@ -12,7 +14,6 @@ public class ItemResource implements IResource {
 
 	private final ItemIdentifierStack stack;
 	private final IRequestItems requester;
-	private Object ccObject;
 
 	public ItemResource(ItemIdentifierStack stack, IRequestItems requester) {
 		this.stack = stack;
@@ -52,6 +53,7 @@ public class ItemResource implements IResource {
 	}
 
 	@Override
+	@Nonnull
 	public IRouter getRouter() {
 		return requester.getRouter();
 	}
@@ -90,16 +92,6 @@ public class ItemResource implements IResource {
 		ItemIdentifierStack stack = this.stack.clone();
 		stack.setStackSize(amount);
 		return new ItemResource(stack, requester);
-	}
-
-	@Override
-	public Object getCCType() {
-		return ccObject;
-	}
-
-	@Override
-	public void setCCType(Object type) {
-		ccObject = type;
 	}
 
 	@Override

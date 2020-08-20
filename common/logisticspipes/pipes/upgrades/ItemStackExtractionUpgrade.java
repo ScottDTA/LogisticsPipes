@@ -1,14 +1,17 @@
 package logisticspipes.pipes.upgrades;
 
+import logisticspipes.modules.LogisticsModule;
 import logisticspipes.modules.ModuleCrafter;
-import logisticspipes.modules.ModuleExtractor;
 import logisticspipes.modules.ModuleProvider;
-import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.pipes.PipeItemsCraftingLogistics;
 import logisticspipes.pipes.PipeItemsProviderLogistics;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 
 public class ItemStackExtractionUpgrade implements IPipeUpgrade {
+
+	public static String getName() {
+		return "item_stack_extraction";
+	}
 
 	@Override
 	public boolean needsUpdate() {

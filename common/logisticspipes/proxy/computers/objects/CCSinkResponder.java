@@ -1,5 +1,7 @@
 package logisticspipes.proxy.computers.objects;
 
+import lombok.Getter;
+
 import logisticspipes.interfaces.IQueueCCEvent;
 import logisticspipes.proxy.computers.interfaces.CCCommand;
 import logisticspipes.proxy.computers.interfaces.CCType;
@@ -7,12 +9,8 @@ import logisticspipes.proxy.computers.interfaces.ILPCCTypeHolder;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
-import lombok.Getter;
-
 @CCType(name = "CCItemSinkRequest")
 public class CCSinkResponder implements ILPCCTypeHolder {
-
-	private Object ccType;
 
 	@Getter
 	private final ItemIdentifierStack stack;
@@ -50,20 +48,11 @@ public class CCSinkResponder implements ILPCCTypeHolder {
 		canSink = -1;
 	}
 
-	@CCCommand(description = "Sends the response to the CC QuickSort module to accept the sink for the givven amount with the givven priority")
+	@CCCommand(description = "Sends the response to the CC QuickSort module to accept the sink for the given amount with the given priority")
 	public void acceptSink(Double amount, Double priority) {
 		canSink = ((Double) (amount > 0 ? amount : 0D)).intValue();
 		this.priority = priority.intValue();
 		done = true;
 	}
 
-	@Override
-	public void setCCType(Object type) {
-		ccType = type;
-	}
-
-	@Override
-	public Object getCCType() {
-		return ccType;
-	}
 }

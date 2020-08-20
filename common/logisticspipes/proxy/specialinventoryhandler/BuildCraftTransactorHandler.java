@@ -3,6 +3,8 @@ package logisticspipes.proxy.specialinventoryhandler;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
@@ -13,7 +15,7 @@ import buildcraft.lib.misc.CapUtil;
 
 import logisticspipes.utils.item.ItemIdentifier;
 
-public class BuildCraftTransactorHandler extends SpecialInventoryHandler {
+public class BuildCraftTransactorHandler extends SpecialInventoryHandler implements SpecialInventoryHandler.Factory {
 
 	private IItemTransactor cap = null;
 
@@ -21,8 +23,7 @@ public class BuildCraftTransactorHandler extends SpecialInventoryHandler {
 		this.cap = cap;
 	}
 
-	public BuildCraftTransactorHandler() {
-	}
+	public BuildCraftTransactorHandler() {}
 
 	@Override
 	public boolean init() {
@@ -30,12 +31,12 @@ public class BuildCraftTransactorHandler extends SpecialInventoryHandler {
 	}
 
 	@Override
-	public boolean isType(TileEntity tile, EnumFacing dir) {
+	public boolean isType(@Nonnull TileEntity tile, @Nullable EnumFacing dir) {
 		return tile.hasCapability(CapUtil.CAP_ITEM_TRANSACTOR, dir);
 	}
 
 	@Override
-	public SpecialInventoryHandler getUtilForTile(TileEntity tile, EnumFacing dir, boolean hideOnePerStack, boolean hideOne, int cropStart, int cropEnd) {
+	public SpecialInventoryHandler getUtilForTile(@Nonnull TileEntity tile, @Nullable EnumFacing dir, boolean hideOnePerStack, boolean hideOne, int cropStart, int cropEnd) {
 		IItemTransactor cap = tile.getCapability(CapUtil.CAP_ITEM_TRANSACTOR, dir);
 		if (cap != null) {
 			return new BuildCraftTransactorHandler(cap);
@@ -44,36 +45,29 @@ public class BuildCraftTransactorHandler extends SpecialInventoryHandler {
 	}
 
 	@Override
+	@Nonnull
 	public Map<ItemIdentifier, Integer> getItemsAndCount() {
 		return Collections.emptyMap();
 	}
 
 	@Override
+	@Nonnull
 	public ItemStack getSingleItem(ItemIdentifier item) {
 		return ItemStack.EMPTY;
 	}
 
 	@Override
-	public boolean containsUndamagedItem(ItemIdentifier item) {
+	public boolean containsUndamagedItem(@Nonnull ItemIdentifier item) {
 		return false;
 	}
 
 	@Override
-	public int roomForItem(ItemIdentifier item) {
-		return roomForItem(item, 0);
+	public int roomForItem(@Nonnull ItemStack stack) {
+		return stack.getCount() - cap.insert(stack, false, true).getCount();
 	}
 
 	@Override
-	public int roomForItem(ItemIdentifier item, int count) {
-		return cap.insert(item.makeNormalStack(64), false, true).getCount();
-	}
-
-	@Override
-	public boolean isSpecialInventory() {
-		return true;
-	}
-
-	@Override
+	@Nonnull
 	public Set<ItemIdentifier> getItems() {
 		return Collections.emptySet();
 	}
@@ -84,19 +78,22 @@ public class BuildCraftTransactorHandler extends SpecialInventoryHandler {
 	}
 
 	@Override
+	@Nonnull
 	public ItemStack getStackInSlot(int slot) {
 		if (slot != 0) return ItemStack.EMPTY;
 		return cap.extract(it -> true, 0, 64, true);
 	}
 
 	@Override
+	@Nonnull
 	public ItemStack decrStackSize(int slot, int amount) {
 		if (slot != 0) return ItemStack.EMPTY;
 		return cap.extract(it -> true, amount, amount, false);
 	}
 
 	@Override
-	public ItemStack add(ItemStack stack, EnumFacing orientation, boolean doAdd) {
+	@Nonnull
+	public ItemStack add(@Nonnull ItemStack stack, EnumFacing orientation, boolean doAdd) {
 		ItemStack overflow = cap.insert(stack.copy(), false, !doAdd);
 		stack.setCount(stack.getCount() - overflow.getCount());
 		return stack;

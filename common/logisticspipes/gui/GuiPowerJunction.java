@@ -2,7 +2,13 @@ package logisticspipes.gui;
 
 import java.io.IOException;
 
-import logisticspipes.LPConstants;
+import net.minecraft.client.gui.GuiButton;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.ResourceLocation;
+
+import org.lwjgl.opengl.GL11;
+
+import logisticspipes.LogisticsPipes;
 import logisticspipes.blocks.powertile.LogisticsPowerJunctionTileEntity;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.packets.block.PowerJunctionCheatPacket;
@@ -10,12 +16,6 @@ import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.gui.DummyContainer;
 import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
 import logisticspipes.utils.string.StringUtils;
-
-import net.minecraft.client.gui.GuiButton;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.ResourceLocation;
-
-import org.lwjgl.opengl.GL11;
 
 public class GuiPowerJunction extends LogisticsBaseGuiScreen {
 
@@ -57,12 +57,11 @@ public class GuiPowerJunction extends LogisticsBaseGuiScreen {
 		mc.fontRenderer.drawString("10 RF = 5 LP", guiLeft + 24, guiTop + 68, 0x404040);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public void initGui() {
 		super.initGui();
 		buttonList.clear();
-		if (LPConstants.DEBUG) {
+		if (LogisticsPipes.isDEBUG()) {
 			buttonList.add(new GuiButton(0, guiLeft + 140, guiTop + 20, 20, 20, "+"));
 		}
 	}

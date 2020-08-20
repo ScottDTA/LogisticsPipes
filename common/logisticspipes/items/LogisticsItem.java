@@ -8,21 +8,21 @@
 
 package logisticspipes.items;
 
-import logisticspipes.LogisticsPipes;
-import logisticspipes.interfaces.ILogisticsItem;
-import logisticspipes.utils.string.StringUtils;
-import net.minecraft.client.renderer.block.model.ModelResourceLocation;
+import java.util.List;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
-import net.minecraftforge.client.model.ModelLoader;
+
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import javax.annotation.Nullable;
-import java.util.List;
+import logisticspipes.LogisticsPipes;
+import logisticspipes.interfaces.ILogisticsItem;
+import logisticspipes.utils.string.StringUtils;
 
 public class LogisticsItem extends Item implements ILogisticsItem {
 
@@ -51,8 +51,9 @@ public class LogisticsItem extends Item implements ILogisticsItem {
 		return 1;
 	}
 
+	@Nonnull
 	@Override
-	public String getUnlocalizedName(ItemStack stack) {
+	public String getUnlocalizedName(@Nonnull ItemStack stack) {
 		if (getHasSubtypes()) {
 			return String.format("%s.%d", super.getUnlocalizedName(stack), stack.getMetadata());
 		}
@@ -67,8 +68,7 @@ public class LogisticsItem extends Item implements ILogisticsItem {
 	 */
 	@Override
 	@SideOnly(Side.CLIENT)
-	@SuppressWarnings({"rawtypes", "unchecked"})
-	public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
+	public void addInformation(@Nonnull ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
 		super.addInformation(stack, worldIn, tooltip, flagIn);
 		if (addShiftInfo()) {
 			StringUtils.addShiftAddition(stack, tooltip);
@@ -79,8 +79,9 @@ public class LogisticsItem extends Item implements ILogisticsItem {
 		return true;
 	}
 
+	@Nonnull
 	@Override
-	public String getItemStackDisplayName(ItemStack itemstack) {
+	public String getItemStackDisplayName(@Nonnull ItemStack itemstack) {
 		return StringUtils.translate(getUnlocalizedName(itemstack) + ".name").trim();
 	}
 }

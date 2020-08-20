@@ -7,15 +7,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
-
-import logisticspipes.config.Configs;
-import logisticspipes.interfaces.ISpecialItemRenderer;
-import logisticspipes.utils.Color;
-import logisticspipes.utils.item.ItemIdentifier;
-import logisticspipes.utils.item.ItemIdentifierStack;
-import logisticspipes.utils.item.ItemStackRenderer;
-import logisticspipes.utils.item.ItemStackRenderer.DisplayAmount;
-import logisticspipes.utils.tuples.Pair;
+import java.util.Objects;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
@@ -32,6 +24,15 @@ import lombok.Getter;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
+
+import logisticspipes.config.Configs;
+import logisticspipes.interfaces.ISpecialItemRenderer;
+import logisticspipes.utils.Color;
+import logisticspipes.utils.item.ItemIdentifier;
+import logisticspipes.utils.item.ItemIdentifierStack;
+import logisticspipes.utils.item.ItemStackRenderer;
+import logisticspipes.utils.item.ItemStackRenderer.DisplayAmount;
+import logisticspipes.utils.tuples.Pair;
 
 public class ItemDisplay {
 
@@ -70,6 +71,7 @@ public class ItemDisplay {
 	private final boolean shiftPageChange;
 	private final Minecraft mc = FMLClientHandler.instance().getClient();
 	private static DisplayOption option = DisplayOption.ID;
+	private final ItemStackRenderer stackRenderer = new ItemStackRenderer(0, 0, 100.0F, false, false);
 
 	public ItemDisplay(IItemSearch search, FontRenderer fontRenderer, LogisticsBaseGuiScreen screen, ISpecialItemRenderer renderer, int left, int top, int width, int height, int amountPosLeft, int amountPosTop, int amountWidth, int[] amountChangeMode, boolean shiftPageChange) {
 		this.search = search;
@@ -90,8 +92,8 @@ public class ItemDisplay {
 		this.amountChangeMode = amountChangeMode;
 		this.shiftPageChange = shiftPageChange;
 		this.requestCountBar = new InputBar(this.fontRenderer, screen, amountPosLeft - (amountWidth / 2), amountPosTop - 5, amountWidth, 12, false, true, InputBar.Align.CENTER);
-		this.requestCountBar.input1 = "1";
 		this.requestCountBar.minNumber = 1;
+		this.requestCountBar.setInteger(1);
 	}
 
 	public void reposition(int left, int top, int width, int height, int amountPosLeft, int amountPosTop) {
@@ -108,8 +110,7 @@ public class ItemDisplay {
 	public void setItemList(Collection<ItemIdentifierStack> allItems) {
 		listbyserver = true;
 		_allItems.clear();
-		_allItems.addAll(allItems);
-		Collections.sort(_allItems, new StackComparitor());
+		allItems.stream().sorted(new ItemidStackDisplayOptionComparator()).forEach(_allItems::add);
 		boolean found = false;
 		if (selectedItem == null) {
 			return;
@@ -126,7 +127,7 @@ public class ItemDisplay {
 		}
 	}
 
-	private class StackComparitor implements Comparator<ItemIdentifierStack> {
+	private static class ItemidStackDisplayOptionComparator implements Comparator<ItemIdentifierStack> {
 
 		@Override
 		public int compare(ItemIdentifierStack o1, ItemIdentifierStack o2) {
@@ -195,7 +196,7 @@ public class ItemDisplay {
 			i = 0;
 		}
 		ItemDisplay.option = DisplayOption.values()[i];
-		Collections.sort(_allItems, new StackComparitor());
+		_allItems.sort(new ItemidStackDisplayOptionComparator());
 	}
 
 	public void renderSortMode(int x, int y) {
@@ -232,15 +233,12 @@ public class ItemDisplay {
 	}
 
 	public void renderAmount(int stackAmount) {
-		int requestCount = 0;
-		try {
-			requestCount = Integer.valueOf(requestCountBar.input1 + requestCountBar.input2);
-		} catch (Exception ignored) {}
+		int requestCount = requestCountBar.getInteger();
 		String StackrequestCount = "" + (requestCount / stackAmount) + "+" + (requestCount % stackAmount);
 		//fontRenderer.drawString(requestCount + "", x - fontRenderer.getStringWidth(requestCount + "") / 2, y, 0x404040);
 		fontRenderer.drawString(StackrequestCount + "", this.amountPosLeft - fontRenderer.getStringWidth(StackrequestCount + "") / 2, this.amountPosTop + 11, 0x404040);
 
-		requestCountBar.renderSearchBar();
+		requestCountBar.drawTextBox();
 	}
 
 	public void renderItemArea(double zLevel) {
@@ -271,9 +269,9 @@ public class ItemDisplay {
 			buf.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
 			int xPosition = (width / 2) - 50;
 			int yPosition = 40;
-			buf.pos(xPosition, yPosition + 100, zLevel).tex(0.04, 0.72 + (graphic * 0.03125)).endVertex();;
-			buf.pos(xPosition + 100, yPosition + 100, zLevel).tex(0.08, 0.72 + (graphic * 0.03125)).endVertex();;
-			buf.pos(xPosition + 100, yPosition, zLevel).tex(0.08, 0.69 + (graphic * 0.03125)).endVertex();;
+			buf.pos(xPosition, yPosition + 100, zLevel).tex(0.04, 0.72 + (graphic * 0.03125)).endVertex();
+			buf.pos(xPosition + 100, yPosition + 100, zLevel).tex(0.08, 0.72 + (graphic * 0.03125)).endVertex();
+			buf.pos(xPosition + 100, yPosition, zLevel).tex(0.08, 0.69 + (graphic * 0.03125)).endVertex();
 			buf.pos(xPosition, yPosition, zLevel).tex(0.04, 0.69 + (graphic * 0.03125)).endVertex();
 			tess.draw();
 		} else {
@@ -306,7 +304,7 @@ public class ItemDisplay {
 					screen.drawRect(x - 2, y - 2, x + panelxSize - 2, y + panelySize - 2, Color.BLACK);
 					screen.drawRect(x - 1, y - 1, x + panelxSize - 3, y + panelySize - 3, Color.DARKER_GREY);
 
-					if(itemIdentifierStack.getStackSize() > 0) {
+					if (itemIdentifierStack.getStackSize() > 0) {
 						tooltip = new Object[] { mouseX + left, mouseY + top, itemIdentifierStack.unsafeMakeNormalStack() };
 					} else {
 						tooltip = new Object[] { mouseX + left, mouseY + top, itemIdentifierStack.getItem().unsafeMakeNormalStack(1) };
@@ -331,9 +329,7 @@ public class ItemDisplay {
 
 				GlStateManager.enableLighting();
 				// use GuiGraphics to render the ItemStacks
-				ItemStackRenderer itemstackRenderer = new ItemStackRenderer(x, y, 100.0F, false, false);
-				itemstackRenderer.setItemIdentStack(itemIdentifierStack).setDisplayAmount(DisplayAmount.HIDE_ONE);
-				itemstackRenderer.renderInGui();
+				stackRenderer.setPosX(x).setPosY(y).setItemIdentStack(itemIdentifierStack).setDisplayAmount(DisplayAmount.HIDE_ONE).renderInGui();
 				GlStateManager.disableLighting();
 
 				x += panelxSize;
@@ -370,11 +366,8 @@ public class ItemDisplay {
 					prevPage();
 				}
 			}
-		} else if(!requestCountBar.isFocused()) {
-			int requestCount = 1;
-			try {
-				requestCount = Integer.valueOf(requestCountBar.input1 + requestCountBar.input2);
-			} catch (Exception ignored) {}
+		} else if (!requestCountBar.isFocused()) {
+			int requestCount = requestCountBar.getInteger();
 			if (isShift && !isControl && !isShiftPageChange()) {
 				if (wheel > 0) {
 					if (!Configs.LOGISTICS_ORDERER_COUNT_INVERTWHEEL) {
@@ -450,8 +443,7 @@ public class ItemDisplay {
 					}
 				}
 			}
-			requestCountBar.input1 = Integer.toString(requestCount);
-			requestCountBar.input2 = "";
+			requestCountBar.setInteger(requestCount);
 		}
 	}
 
@@ -468,14 +460,12 @@ public class ItemDisplay {
 	}
 
 	public void resetAmount() {
-		requestCountBar.input1 = "1";
-		requestCountBar.input2 = "";
+		requestCountBar.setInteger(1);
 	}
 
 	public void setMaxAmount() {
 		if (selectedItem != null && selectedItem.getStackSize() != 0) {
-			requestCountBar.input1 = Integer.toString(selectedItem.getStackSize());
-			requestCountBar.input2 = "";
+			requestCountBar.setInteger(selectedItem.getStackSize());
 		}
 	}
 
@@ -496,26 +486,15 @@ public class ItemDisplay {
 	}
 
 	public void add(int i) {
-		int requestCount = 1;
-		try {
-			requestCount = Integer.valueOf(requestCountBar.input1 + requestCountBar.input2);
-		} catch (Exception ignored) {}
+		int requestCount = requestCountBar.getInteger();
 		if (i != 1 && requestCount == 1) {
 			requestCount -= 1;
 		}
-		requestCount += getAmountChangeMode(i);
-		requestCountBar.input1 = Integer.toString(requestCount);
-		requestCountBar.input2 = "";
+		requestCountBar.setInteger(requestCount + getAmountChangeMode(i));
 	}
 
 	public void sub(int i) {
-		int requestCount = 1;
-		try {
-			requestCount = Integer.valueOf(requestCountBar.input1 + requestCountBar.input2);
-		} catch (Exception ignored) {}
-		requestCount = Math.max(1, requestCount - getAmountChangeMode(i));
-		requestCountBar.input1 = Integer.toString(requestCount);
-		requestCountBar.input2 = "";
+		requestCountBar.setInteger(requestCountBar.getInteger() - getAmountChangeMode(i));
 	}
 
 	public ItemIdentifierStack getSelectedItem() {
@@ -523,15 +502,11 @@ public class ItemDisplay {
 	}
 
 	public int getRequestCount() {
-		int requestCount = 1;
-		try {
-			requestCount = Integer.valueOf(requestCountBar.input1 + requestCountBar.input2);
-		} catch (Exception ignored) {}
-		return requestCount;
+		return requestCountBar.getInteger();
 	}
 
 	public boolean handleClick(int x, int y, int k) {
-		if(requestCountBar.handleClick(x, y, k)) {
+		if (requestCountBar.handleClick(x, y, k)) {
 			return true;
 		}
 		x -= left;
@@ -550,7 +525,7 @@ public class ItemDisplay {
 	}
 
 	public boolean keyTyped(char c, int i) {
-		if(!requestCountBar.handleKey(c, i)) {
+		if (!requestCountBar.handleKey(c, i)) {
 			if (i == 30 && Keyboard.isKeyDown(Keyboard.KEY_LCONTROL)) { //Ctrl-a
 				setMaxAmount();
 				return true;
@@ -567,5 +542,9 @@ public class ItemDisplay {
 			return false;
 		}
 		return true;
+	}
+
+	public void setFocused(boolean value) {
+		requestCountBar.setFocused(value);
 	}
 }

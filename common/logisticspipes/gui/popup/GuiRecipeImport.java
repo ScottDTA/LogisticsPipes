@@ -8,9 +8,9 @@ import java.util.TreeSet;
 
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiButton;
-import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.NonNullList;
 
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.packets.NEISetCraftingRecipe;
@@ -77,7 +77,6 @@ public class GuiRecipeImport extends SubGuiScreen {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void initGui() {
 		super.initGui();
 		buttonList.clear();
@@ -180,19 +179,19 @@ public class GuiRecipeImport extends SubGuiScreen {
 	protected void actionPerformed(GuiButton button) {
 		int id = button.id;
 		if (id == 0) {
-			ItemStack[] stack = new ItemStack[9];
+			NEISetCraftingRecipe packet = PacketHandler.getPacket(NEISetCraftingRecipe.class);
+			NonNullList<ItemStack> stackList = packet.getStackList();
 			int i = 0;
 			for (Canidates canidate : grid) {
 				if (canidate == null) {
 					i++;
 					continue;
 				}
-				stack[i++] = canidate.order.get(canidate.pos).makeNormalStack();
+				stackList.set(i++, canidate.order.get(canidate.pos).makeNormalStack());
 			}
-			NEISetCraftingRecipe packet = PacketHandler.getPacket(NEISetCraftingRecipe.class);
-			MainProxy.sendPacketToServer(packet.setContent(stack).setBlockPos(tile.getPos()));
+			MainProxy.sendPacketToServer(packet.setBlockPos(tile.getPos()));
 			exitGui();
-		} else if(id == 1) {
+		} else if (id == 1) {
 			MainProxy.sendPacketToServer(PacketHandler.getPacket(FindMostLikelyRecipeComponents.class).setContent(list).setTilePos(tile));
 		} else if (id >= 10 && id < 30) {
 			int slot = id % 10;
@@ -213,11 +212,11 @@ public class GuiRecipeImport extends SubGuiScreen {
 	}
 
 	public void handleProposePacket(List<Integer> response) {
-		if(list.size() != response.size()) return;
-		for(int slot=0;slot<list.size();slot++) {
+		if (list.size() != response.size()) return;
+		for (int slot = 0; slot < list.size(); slot++) {
 			Canidates canidate = list.get(slot);
 			int newPos = response.get(slot);
-			if(newPos != -1) {
+			if (newPos != -1) {
 				canidate.pos = newPos;
 			}
 		}

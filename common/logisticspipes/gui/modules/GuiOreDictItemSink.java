@@ -3,7 +3,9 @@ package logisticspipes.gui.modules;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nonnull;
 
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
@@ -14,7 +16,6 @@ import logisticspipes.modules.ModuleOreDictItemSink;
 import logisticspipes.utils.Color;
 import logisticspipes.utils.gui.DummyContainer;
 import logisticspipes.utils.gui.GuiGraphics;
-import logisticspipes.utils.gui.SimpleGraphics;
 import logisticspipes.utils.gui.SmallGuiButton;
 import logisticspipes.utils.item.ItemIdentifierInventory;
 
@@ -46,7 +47,6 @@ public class GuiOreDictItemSink extends ModuleBaseGui {
 		ySize = 208;
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public void initGui() {
 		super.initGui();
@@ -101,10 +101,10 @@ public class GuiOreDictItemSink extends ModuleBaseGui {
 		}
 
 		//draw unsunk list and highlight bar, handle clicks
-		SimpleGraphics.drawRectNoBlend(guiLeft + 26, guiTop + 5, guiLeft + 159, guiTop + 27, Color.DARK_GREY, 0.0);
+		Gui.drawRect(guiLeft + 26, guiTop + 5, guiLeft + 159, guiTop + 27, Color.DARK_GREY.getValue());
 		for (int i = 0; i + currentOffset < unsunkNames.size() && i < 2; i++) {
 			if (27 <= pointerX && pointerX < 158 && 6 + (10 * i) <= pointerY && pointerY < 6 + (10 * (i + 1))) {
-				SimpleGraphics.drawRectNoBlend(guiLeft + 27, guiTop + 6 + (10 * i), guiLeft + 158, guiTop + 6 + (10 * (i + 1)), Color.LIGHT_GREY, 0.0);
+				Gui.drawRect(guiLeft + 27, guiTop + 6 + (10 * i), guiLeft + 158, guiTop + 6 + (10 * (i + 1)), Color.LIGHT_GREY.getValue());
 			}
 			mc.fontRenderer.drawString(unsunkNames.get(currentOffset + i), guiLeft + 28, guiTop + 7 + (10 * i), 0x404040);
 			if (27 <= mouseX && mouseX < 158 && 6 + (10 * i) <= mouseY && mouseY < 6 + (10 * (i + 1))) {
@@ -122,10 +122,10 @@ public class GuiOreDictItemSink extends ModuleBaseGui {
 		}
 
 		//draw main list and highlight bar, handle clicks
-		SimpleGraphics.drawRectNoBlend(guiLeft + 5, guiTop + 30, guiLeft + 169, guiTop + 122, Color.DARK_GREY, 0.0);
+		Gui.drawRect(guiLeft + 5, guiTop + 30, guiLeft + 169, guiTop + 122, Color.DARK_GREY.getValue());
 		for (int i = 0; i < _itemSink.oreList.size() && i < 9; i++) {
 			if (6 <= pointerX && pointerX < 168 && 31 + (10 * i) <= pointerY && pointerY < 31 + (10 * (i + 1))) {
-				SimpleGraphics.drawRectNoBlend(guiLeft + 6, guiTop + 31 + (10 * i), guiLeft + 168, guiTop + 31 + (10 * (i + 1)), Color.LIGHT_GREY, 0.0);
+				Gui.drawRect(guiLeft + 6, guiTop + 31 + (10 * i), guiLeft + 168, guiTop + 31 + (10 * (i + 1)), Color.LIGHT_GREY.getValue());
 			}
 			mc.fontRenderer.drawString(_itemSink.oreList.get(i), guiLeft + 7, guiTop + 32 + (10 * i), 0x404040);
 			if (6 <= mouseX && mouseX < 168 && 31 + (10 * i) <= mouseY && mouseY < 31 + (10 * (i + 1))) {
@@ -141,8 +141,8 @@ public class GuiOreDictItemSink extends ModuleBaseGui {
 		}
 	}
 
-	private List<String> getOreNames(ItemStack s) {
-		int oreids[] = OreDictionary.getOreIDs(s);
+	private List<String> getOreNames(@Nonnull ItemStack stack) {
+		int[] oreids = OreDictionary.getOreIDs(stack);
 		List<String> oreNames = new ArrayList<>(oreids.length);
 		for (int oreid : oreids) {
 			String oreName = OreDictionary.getOreName(oreid);

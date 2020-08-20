@@ -2,24 +2,18 @@ package logisticspipes.network.guis.module.inpipe;
 
 import net.minecraft.entity.player.EntityPlayer;
 
-import lombok.Getter;
-import lombok.Setter;
-
 import logisticspipes.gui.modules.GuiAdvancedExtractor;
-import logisticspipes.modules.ModuleAdvancedExtractor;
 import logisticspipes.network.abstractguis.GuiProvider;
 import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
+import logisticspipes.utils.StaticResolve;
 import logisticspipes.utils.gui.DummyContainer;
+import network.rs485.logisticspipes.module.AsyncAdvancedExtractor;
 import network.rs485.logisticspipes.util.LPDataInput;
 import network.rs485.logisticspipes.util.LPDataOutput;
-
-import logisticspipes.utils.StaticResolve;
 
 @StaticResolve
 public class AdvancedExtractorModuleSlot extends ModuleCoordinatesGuiProvider {
 
-	@Getter
-	@Setter
 	private boolean areItemsIncluded;
 
 	public AdvancedExtractorModuleSlot(int id) {
@@ -28,7 +22,7 @@ public class AdvancedExtractorModuleSlot extends ModuleCoordinatesGuiProvider {
 
 	@Override
 	public Object getClientGui(EntityPlayer player) {
-		ModuleAdvancedExtractor module = this.getLogisticsModule(player.getEntityWorld(), ModuleAdvancedExtractor.class);
+		AsyncAdvancedExtractor module = this.getLogisticsModule(player.getEntityWorld(), AsyncAdvancedExtractor.class);
 		if (module == null) {
 			return null;
 		}
@@ -38,17 +32,7 @@ public class AdvancedExtractorModuleSlot extends ModuleCoordinatesGuiProvider {
 
 	@Override
 	public DummyContainer getContainer(EntityPlayer player) {
-		ModuleAdvancedExtractor module = this.getLogisticsModule(player.getEntityWorld(), ModuleAdvancedExtractor.class);
-		if (module == null) {
-			return null;
-		}
-		DummyContainer dummy = new DummyContainer(player.inventory, module.getFilterInventory());
-		dummy.addNormalSlotsForPlayerInventory(8, 60);
-		//Pipe slots
-		for (int pipeSlot = 0; pipeSlot < 9; pipeSlot++) {
-			dummy.addDummySlot(pipeSlot, 8 + pipeSlot * 18, 18);
-		}
-		return dummy;
+		return SimpleFilterInventorySlot.getContainerFromFilterModule(this, player);
 	}
 
 	@Override
@@ -66,5 +50,14 @@ public class AdvancedExtractorModuleSlot extends ModuleCoordinatesGuiProvider {
 	public void readData(LPDataInput input) {
 		super.readData(input);
 		areItemsIncluded = input.readBoolean();
+	}
+
+	public boolean isAreItemsIncluded() {
+		return this.areItemsIncluded;
+	}
+
+	public AdvancedExtractorModuleSlot setAreItemsIncluded(boolean areItemsIncluded) {
+		this.areItemsIncluded = areItemsIncluded;
+		return this;
 	}
 }

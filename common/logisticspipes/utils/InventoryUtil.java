@@ -1,6 +1,5 @@
 /**
  * Copyright (c) Krapht, 2011
- * 
  * "LogisticsPipes" is distributed under the terms of the Minecraft Mod Public
  * License 1.0, or MMPL. Please check the contents of the license located in
  * http://www.mod-buildcraft.com/MMPL-1.0.txt
@@ -12,15 +11,15 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import javax.annotation.Nonnull;
+
+import net.minecraft.item.ItemStack;
+
+import net.minecraftforge.items.IItemHandler;
 
 import logisticspipes.interfaces.IInventoryUtil;
 import logisticspipes.interfaces.ISpecialInsertion;
 import logisticspipes.utils.item.ItemIdentifier;
-
-import net.minecraft.inventory.IInventory;
-import net.minecraft.item.ItemStack;
-
-import net.minecraftforge.items.IItemHandler;
 
 public class InventoryUtil implements IInventoryUtil, ISpecialInsertion {
 
@@ -39,7 +38,7 @@ public class InventoryUtil implements IInventoryUtil, ISpecialInsertion {
 	}
 
 	@Override
-	public int itemCount(ItemIdentifier item) {
+	public int itemCount(@Nonnull ItemIdentifier item) {
 		int count = 0;
 		boolean first = true;
 		for (int i = _cropStart; i < _inventory.getSlots() - _cropEnd; i++) {
@@ -58,6 +57,7 @@ public class InventoryUtil implements IInventoryUtil, ISpecialInsertion {
 	}
 
 	@Override
+	@Nonnull
 	public Map<ItemIdentifier, Integer> getItemsAndCount() {
 		Map<ItemIdentifier, Integer> items = new LinkedHashMap<>();
 		for (int i = _cropStart; i < _inventory.getSlots() - _cropEnd; i++) {
@@ -78,6 +78,7 @@ public class InventoryUtil implements IInventoryUtil, ISpecialInsertion {
 	}
 
 	@Override
+	@Nonnull
 	public Set<ItemIdentifier> getItems() {
 		Set<ItemIdentifier> items = new TreeSet<>();
 		for (int i = _cropStart; i < _inventory.getSlots() - _cropEnd; i++) {
@@ -91,16 +92,18 @@ public class InventoryUtil implements IInventoryUtil, ISpecialInsertion {
 	}
 
 	@Override
+	@Nonnull
 	public ItemStack getSingleItem(ItemIdentifier item) {
 		return getMultipleItems(item, 1);
 	}
 
 	@Override
-	public ItemStack getMultipleItems(ItemIdentifier item, int count) {
+	@Nonnull
+	public ItemStack getMultipleItems(@Nonnull ItemIdentifier item, int count) {
 		if (itemCount(item) < count) {
-			return null;
+			return ItemStack.EMPTY;
 		}
-		ItemStack outputStack = null;
+		ItemStack outputStack = ItemStack.EMPTY;
 		boolean first = true;
 
 		for (int i = _cropStart; i < _inventory.getSlots() - _cropEnd && count > 0; i++) {
@@ -114,7 +117,7 @@ public class InventoryUtil implements IInventoryUtil, ISpecialInsertion {
 				continue;
 			}
 			ItemStack removed = _inventory.extractItem(i, itemsToSplit, false);
-			if (outputStack == null) {
+			if (outputStack.isEmpty()) {
 				outputStack = removed;
 			} else {
 				outputStack.setCount(outputStack.getCount() + removed.getCount());
@@ -126,7 +129,7 @@ public class InventoryUtil implements IInventoryUtil, ISpecialInsertion {
 
 	//Ignores slot/item hiding
 	@Override
-	public boolean containsUndamagedItem(ItemIdentifier item) {
+	public boolean containsUndamagedItem(@Nonnull ItemIdentifier item) {
 		for (int i = 0; i < _inventory.getSlots(); i++) {
 			ItemStack stack = _inventory.getStackInSlot(i);
 			if (stack.isEmpty()) {
@@ -139,25 +142,23 @@ public class InventoryUtil implements IInventoryUtil, ISpecialInsertion {
 		return false;
 	}
 
-	//Ignores slot/item hiding
 	@Override
-	public int roomForItem(ItemIdentifier item) {
-		return roomForItem(item, Integer.MAX_VALUE);
-	}
+	public int roomForItem(@Nonnull ItemStack stack) {
+		// Special casing for "unlimited" storage items
+		if (_inventory.getSlots() == 1 && _inventory.getSlotLimit(0) == Integer.MAX_VALUE) {
+			ItemStack content = _inventory.extractItem(0, Integer.MAX_VALUE, true);
+			if (content.isEmpty()) {
+				return Integer.MAX_VALUE;
+			}
+			return Integer.MAX_VALUE - content.getCount();
+		}
 
-	@Override
-	public int roomForItem(ItemIdentifier item, int count) {
 		int totalRoom = 0;
-		for (int i = 0; i < _inventory.getSlots() && count > totalRoom; i++) {
-			ItemStack leftover = _inventory.insertItem(i, item.unsafeMakeNormalStack(count), true);
-			totalRoom += count - leftover.getCount();
+		for (int i = 0; i < _inventory.getSlots() && stack.getCount() > totalRoom; i++) {
+			ItemStack leftover = _inventory.insertItem(i, stack, true);
+			totalRoom += stack.getCount() - leftover.getCount();
 		}
 		return totalRoom;
-	}
-
-	@Override
-	public boolean isSpecialInventory() {
-		return false;
 	}
 
 	@Override
@@ -166,19 +167,21 @@ public class InventoryUtil implements IInventoryUtil, ISpecialInsertion {
 	}
 
 	@Override
+	@Nonnull
 	public ItemStack getStackInSlot(int i) {
 		return _inventory.getStackInSlot(i);
 	}
 
 	@Override
+	@Nonnull
 	public ItemStack decrStackSize(int i, int j) {
 		return _inventory.extractItem(i, j, false);
 	}
 
 	@Override
-	public int addToSlot(ItemStack stack, int slot) {
+	public int addToSlot(@Nonnull ItemStack stack, int slot) {
 		int wanted = stack.getCount();
-		ItemStack rest = _inventory.insertItem(slot, stack, true);
+		ItemStack rest = _inventory.insertItem(slot, stack, false);
 		return wanted - rest.getCount();
 	}
 }

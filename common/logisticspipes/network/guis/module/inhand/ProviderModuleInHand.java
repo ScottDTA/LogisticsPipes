@@ -1,15 +1,14 @@
 package logisticspipes.network.guis.module.inhand;
 
-import logisticspipes.modules.ModuleProvider;
-import logisticspipes.modules.abstractmodules.LogisticsModule;
-import logisticspipes.network.abstractguis.GuiProvider;
-import logisticspipes.network.abstractguis.ModuleInHandGuiProvider;
-import logisticspipes.utils.gui.DummyContainer;
-import logisticspipes.utils.gui.DummyModuleContainer;
-
 import net.minecraft.entity.player.EntityPlayer;
 
+import logisticspipes.modules.LogisticsModule;
+import logisticspipes.modules.ModuleProvider;
+import logisticspipes.network.abstractguis.GuiProvider;
+import logisticspipes.network.abstractguis.ModuleInHandGuiProvider;
 import logisticspipes.utils.StaticResolve;
+import logisticspipes.utils.gui.DummyContainer;
+import logisticspipes.utils.gui.DummyModuleContainer;
 
 @StaticResolve
 public class ProviderModuleInHand extends ModuleInHandGuiProvider {

@@ -6,69 +6,52 @@ But we have some required steps that you need to follow to make things work.
 
 ## Prerequisites
 
-1. Having [git](http://git-scm.com/) or the GitHub app
-([Windows](https://windows.github.com/)/[Mac](https://mac.github.com/))
-installed
-2. Having an IDE (we do use [Eclipse](https://eclipse.org/) and
-[IntelliJ IDEA](https://www.jetbrains.com/idea/))
+1. Having [git](http://git-scm.com/) installed
+2. Having an IDE (we do use [IntelliJ IDEA](https://www.jetbrains.com/idea/))
 3. Having [Lombok](http://projectlombok.org/) installed with your IDE (in
 IntelliJ IDEA there is a plugin for Lombok which requires annotation processing
 to be enabled)
-4. IRC wouldn't be bad if you want to communicate with other contributors.
+4. Matrix/Discord wouldn't be bad if you want to communicate with other
+   contributors and us.
 
-## IRC
+## Matrix
 
-The server is esper.net and our channel is #RS485
+[Dev Channel](https://matrix.to/#/#logisticspipes+dev:rs485.network)
 
-If you have questions, be polite and have time until they get answered. Best
-usage of IRC is to have an
-[IRC Bouncer](http://en.wikipedia.org/wiki/BNC_%28software%29) (there are free
-services around), because IRC does not guarantee instant answers on your
-questions.
+[LP Community](https://matrix.to/#/+logisticspipes:rs485.network)
 
-## Setting Up
+The channels are all linked to Discord and some even to IRC.
+
+## How to set up a local development environment
 
 ### git
 
 First off you need to clone Logistics Pipes from GitHub of course. If you only
 want to browse the source, you can clone the official repository. But it is best
-practice to actually fork the repository (yeah you need a GitHub account and yes
-it is free) and clone your own copy. With the GitHub App cloning your own copy
-is even easier as well.
+practice to actually fork the repository and clone your own copy.
 
 The git command line is `git clone https://github.com/RS485/LogisticsPipes.git`
-where you can replace RS485 by your own user name, if you forked the repository.
+where you can replace *RS485* by your own user name, **if** you forked the
+repository.
 
-### Development environment
+### Gradle
 
-Once you have your copy of the Logistics Pipes sources, you can set up the
-Minecraft sources and download Forge and everything by typing `gradlew extract
-setupDecompWorkspace` in a console window in the very same folder, where you
-just downloaded the sources to. This command will take a while, but download and
-unpack everything you need.
+After cloning you can build LP with `./gradlew build` and find the output in
+`build/libs`. If the task fails there may be something wrong with maven
+repositories or [a Java update broke ForgeGradle 2](https://github.com/MinecraftForge/ForgeGradle/issues/652)
+or something may be wrong with your setup. You may definitely ask for help on
+the mentioned communication channels above, but please be sure to state your
+issue as good as possible and be nice to others.
 
-Afterwards you need to set up the project files for your specific IDE. To do
-that with gradle you only have two options:
+### Running Minecraft from your dev environment
 
-* `gradlew eclipse` for Eclipse
-* `gradlew idea` for IntelliJ IDEA
+After you successfully built LP you can probably run Minecraft directly from
+your IDE. There may be a ton of missing texture errors and missing language
+files though and this problem even happens when using a new clean mod template,
+but don't be sad! The solution is to copy your `build/resources/main/*` into
+`build/classes/java/main` before launching the game or you may link those two
+ together:
 
-Then after opening the newly created project files with your IDE you need to add
-the folders `api` and `dummy` to your list of source folders. You may need to
-specify your Java JDK in the IDE as well. Logistics Pipes 0.10+ requires Java 8.
-
-<strike>
-Finally to use the predefined run/debug configurations with GradleStart you need
-to add `--noCoreSearch` to the list of program arguments in both server and
-client configurations. You can also set your ingame username by adding
-`--username <name>` to the program arguments of the client config as well.
-</strike>
-
-Right now there is no official way on how to start Minecraft from your developer
-environment. The striked paragraph above might still work for you though. This
-might change with the switch to Minecraft 1.8+, because of ForgeGradle 2.0.
-
-This should have set you up to build and run Minecraft with Logistics Pipes and
-some included mods from your IDE. If something didn't work that well for you,
-please leave an issue and tell us what happened and what you did to solve the
-problem. **Happy coding!**
+```shell script
+$ rm -r build/resources/main && ln -s ../classes/java/main build/resources/main
+```

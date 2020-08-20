@@ -1,6 +1,5 @@
 package logisticspipes.utils.gui;
 
-import java.util.Arrays;
 import java.util.Collections;
 
 import net.minecraft.client.gui.Gui;
@@ -15,8 +14,11 @@ import logisticspipes.utils.string.StringUtils;
 public class TextListDisplay {
 
 	public interface List {
+
 		int getSize();
+
 		String getTextAt(int index);
+
 		int getTextColor(int index);
 	}
 
@@ -29,7 +31,6 @@ public class TextListDisplay {
 	private final int borderLeft;
 	private final int elementPerPage;
 
-
 	private int mouseClickX = 0;
 	private int mouseClickY = 0;
 	private int mousePosX = 0;
@@ -39,7 +40,6 @@ public class TextListDisplay {
 	@Setter
 	private int selected = -1;
 	private int hover = -1;
-
 
 	public TextListDisplay(IGuiAccess gui, int borderLeft, int borderTop, int borderRight, int borderBottom, int elementPerPage, List list) {
 		this.list = list;
@@ -60,7 +60,6 @@ public class TextListDisplay {
 		mousePosX = mouseX;
 		mousePosY = mouseY;
 
-
 		Gui.drawRect(gui.getGuiLeft() + borderLeft, gui.getGuiTop() + borderTop, gui.getRight() - borderRight, gui.getBottom() - borderBottom, Color.getValue(Color.GREY));
 
 		if (scroll + elementPerPage > list.getSize()) {
@@ -78,7 +77,7 @@ public class TextListDisplay {
 				&& this.mousePosY < gui.getGuiTop() + borderTop + 3 + (elementPerPage * 10)) {
 			hover = scroll + (this.mousePosY - gui.getGuiTop() - borderTop - 3) / 10;
 		}
-		if(list.getSize() == 0 || hover >= list.getSize()) {
+		if (list.getSize() == 0 || hover >= list.getSize()) {
 			hover = -1;
 		}
 
@@ -106,7 +105,7 @@ public class TextListDisplay {
 	}
 
 	public void renderGuiForeground() {
-		if(hover != -1) {
+		if (hover != -1) {
 			GuiGraphics.drawToolTip(mousePosX - gui.getGuiLeft(), mousePosY - gui.getGuiTop(), Collections.singletonList(list.getTextAt(hover)), TextFormatting.WHITE);
 		}
 	}

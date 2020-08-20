@@ -6,13 +6,7 @@
 
 package logisticspipes.gui;
 
-import logisticspipes.network.PacketHandler;
-import logisticspipes.network.packets.pipe.FluidSupplierMode;
-import logisticspipes.pipes.PipeItemsFluidSupplier;
-import logisticspipes.proxy.MainProxy;
-import logisticspipes.utils.gui.DummyContainer;
-import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
-import logisticspipes.utils.string.StringUtils;
+import java.io.IOException;
 
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.inventory.IInventory;
@@ -20,7 +14,13 @@ import net.minecraft.util.ResourceLocation;
 
 import org.lwjgl.opengl.GL11;
 
-import java.io.IOException;
+import logisticspipes.network.PacketHandler;
+import logisticspipes.network.packets.pipe.FluidSupplierMode;
+import logisticspipes.pipes.PipeItemsFluidSupplier;
+import logisticspipes.proxy.MainProxy;
+import logisticspipes.utils.gui.DummyContainer;
+import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
+import logisticspipes.utils.string.StringUtils;
 
 public class GuiFluidSupplierPipe extends LogisticsBaseGuiScreen {
 
@@ -67,7 +67,6 @@ public class GuiFluidSupplierPipe extends LogisticsBaseGuiScreen {
 		drawTexturedModalRect(j, k, 0, 0, xSize, ySize);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public void initGui() {
 		super.initGui();
@@ -80,7 +79,7 @@ public class GuiFluidSupplierPipe extends LogisticsBaseGuiScreen {
 	protected void actionPerformed(GuiButton guibutton) throws IOException {
 		if (guibutton.id == 0) {
 			logic.setRequestingPartials(!logic.isRequestingPartials());
-			((GuiButton) buttonList.get(0)).displayString = logic.isRequestingPartials() ? StringUtils.translate(GuiFluidSupplierPipe.PREFIX + "Yes") : StringUtils.translate(GuiFluidSupplierPipe.PREFIX + "No");
+			buttonList.get(0).displayString = logic.isRequestingPartials() ? StringUtils.translate(GuiFluidSupplierPipe.PREFIX + "Yes") : StringUtils.translate(GuiFluidSupplierPipe.PREFIX + "No");
 			MainProxy.sendPacketToServer(PacketHandler.getPacket(FluidSupplierMode.class).setInteger((logic.isRequestingPartials() ? 1 : 0)).setPosX(logic.getX()).setPosY(logic.getY()).setPosZ(logic.getZ()));
 		}
 		super.actionPerformed(guibutton);

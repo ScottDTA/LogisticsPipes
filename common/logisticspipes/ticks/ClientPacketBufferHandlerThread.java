@@ -44,7 +44,7 @@ public class ClientPacketBufferHandlerThread {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		try {
 			GZIPInputStream gzip = new GZIPInputStream(new ByteArrayInputStream(contentBytes));
-			int buffer = 0;
+			int buffer;
 			while ((buffer = gzip.read()) != -1) {
 				out.write(buffer);
 			}
@@ -54,10 +54,7 @@ public class ClientPacketBufferHandlerThread {
 		return out.toByteArray();
 	}
 
-	public void clientTick(TickEvent.ClientTickEvent event) {
-		if (event.phase != TickEvent.Phase.END) {
-			return;
-		}
+	public void clientTick() {
 		clientDecompressorThread.clientTickEnd();
 	}
 
@@ -82,7 +79,7 @@ public class ClientPacketBufferHandlerThread {
 		clientDecompressorThread.queuePacket(packet, player);
 	}
 
-	private class ClientCompressorThread extends Thread {
+	private static class ClientCompressorThread extends Thread {
 
 		//list of C->S packets to be serialized and compressed
 		private final LinkedList<ModernPacket> clientList = new LinkedList<>();
@@ -183,7 +180,7 @@ public class ClientPacketBufferHandlerThread {
 		}
 	}
 
-	private class ClientDecompressorThread extends Thread {
+	private static class ClientDecompressorThread extends Thread {
 
 		//Received compressed S->C data
 		private final LinkedList<byte[]> queue = new LinkedList<>();

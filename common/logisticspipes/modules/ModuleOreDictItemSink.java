@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import javax.annotation.Nonnull;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
@@ -21,8 +22,6 @@ import logisticspipes.interfaces.IClientInformationProvider;
 import logisticspipes.interfaces.IHUDModuleHandler;
 import logisticspipes.interfaces.IHUDModuleRenderer;
 import logisticspipes.interfaces.IModuleWatchReciver;
-import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
-import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.network.NewGuiHandler;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
@@ -39,8 +38,9 @@ import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
+import network.rs485.logisticspipes.module.Gui;
 
-public class ModuleOreDictItemSink extends LogisticsGuiModule implements IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver {
+public class ModuleOreDictItemSink extends LogisticsModule implements IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, Gui {
 
 	public final List<String> oreList = new LinkedList<>();
 	//map of Item:<set of damagevalues>, empty set if wildcard damage
@@ -53,6 +53,10 @@ public class ModuleOreDictItemSink extends LogisticsGuiModule implements IClient
 
 	private SinkReply _sinkReply;
 
+	public static String getName() {
+		return "item_sink_oredict";
+	}
+
 	@Override
 	public void registerPosition(ModulePositionType slot, int positionInt) {
 		super.registerPosition(slot, positionInt);
@@ -60,7 +64,7 @@ public class ModuleOreDictItemSink extends LogisticsGuiModule implements IClient
 	}
 
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
+	public SinkReply sinksItem(@Nonnull ItemStack stack, ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit, boolean forcePassive) {
 		if (bestPriority > _sinkReply.fixedPriority.ordinal() || (bestPriority == _sinkReply.fixedPriority.ordinal() && bestCustomPriority >= _sinkReply.customPriority)) {
 			return null;
 		}
@@ -77,28 +81,11 @@ public class ModuleOreDictItemSink extends LogisticsGuiModule implements IClient
 		return null;
 	}
 
-	@Override
-	protected ModuleCoordinatesGuiProvider getPipeGuiProvider() {
-		NBTTagCompound nbt = new NBTTagCompound();
-		writeToNBT(nbt);
-		return NewGuiHandler.getGui(OreDictItemSinkModuleSlot.class).setNbt(nbt);
-	}
-
-	@Override
-	protected ModuleInHandGuiProvider getInHandGuiProvider() {
-		return NewGuiHandler.getGui(OreDictItemSinkModuleInHand.class);
-	}
-
 	public List<ItemIdentifierStack> getHudItemList() {
 		if (oreItemIdMap == null) {
 			buildOreItemIdMap();
 		}
 		return oreHudList;
-	}
-
-	@Override
-	public LogisticsModule getSubModule(int slot) {
-		return null;
 	}
 
 	private void buildOreItemIdMap() {
@@ -137,7 +124,7 @@ public class ModuleOreDictItemSink extends LogisticsGuiModule implements IClient
 	}
 
 	@Override
-	public void readFromNBT(NBTTagCompound nbttagcompound) {
+	public void readFromNBT(@Nonnull NBTTagCompound nbttagcompound) {
 		oreList.clear();
 		int limit = nbttagcompound.getInteger("listSize");
 		for (int i = 0; i < limit; i++) {
@@ -150,7 +137,7 @@ public class ModuleOreDictItemSink extends LogisticsGuiModule implements IClient
 	}
 
 	@Override
-	public void writeToNBT(NBTTagCompound nbttagcompound) {
+	public void writeToNBT(@Nonnull NBTTagCompound nbttagcompound) {
 		nbttagcompound.setInteger("listSize", oreList.size());
 		for (int i = 0; i < oreList.size(); i++) {
 			nbttagcompound.setString("Ore" + i, oreList.get(i));
@@ -161,7 +148,7 @@ public class ModuleOreDictItemSink extends LogisticsGuiModule implements IClient
 	public void tick() {}
 
 	@Override
-	public List<String> getClientInformation() {
+	public @Nonnull List<String> getClientInformation() {
 		List<String> list = new ArrayList<>();
 		list.add("Ores: ");
 		list.addAll(oreList);
@@ -214,11 +201,6 @@ public class ModuleOreDictItemSink extends LogisticsGuiModule implements IClient
 	}
 
 	@Override
-	public List<ItemIdentifier> getSpecificInterests() {
-		return null;
-	}
-
-	@Override
 	public boolean interestedInAttachedInventory() {
 		return false;
 	}
@@ -231,6 +213,20 @@ public class ModuleOreDictItemSink extends LogisticsGuiModule implements IClient
 	@Override
 	public boolean recievePassive() {
 		return true;
+	}
+
+	@Nonnull
+	@Override
+	public ModuleCoordinatesGuiProvider getPipeGuiProvider() {
+		NBTTagCompound nbt = new NBTTagCompound();
+		writeToNBT(nbt);
+		return NewGuiHandler.getGui(OreDictItemSinkModuleSlot.class).setNbt(nbt);
+	}
+
+	@Nonnull
+	@Override
+	public ModuleInHandGuiProvider getInHandGuiProvider() {
+		return NewGuiHandler.getGui(OreDictItemSinkModuleInHand.class);
 	}
 
 }

@@ -15,7 +15,6 @@ import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 
 import lombok.Getter;
 
@@ -53,6 +52,7 @@ public class RequestTreeNode {
 	private Set<LogisticsOrderManager<?, ?>> usedExtrasFromManager = new HashSet<LogisticsOrderManager<?, ?>>();
 	private ICraftingTemplate lastCrafterTried = null;
 	private int promiseAmount = 0;
+
 	protected RequestTreeNode(IResource requestType, RequestTreeNode parentNode, EnumSet<ActiveRequestType> requestFlags, IAdditionalTargetInformation info) {
 		this(null, requestType, parentNode, requestFlags, info);
 	}
@@ -92,9 +92,9 @@ public class RequestTreeNode {
 		BitSet routersIndex = ServerRouter.getRoutersInterestedIn(item);
 		List<ExitRoute> validSources = new ArrayList<>(); // get the routing table
 		for (int i = routersIndex.nextSetBit(0); i >= 0; i = routersIndex.nextSetBit(i + 1)) {
-			IRouter r = SimpleServiceLocator.routerManager.getRouterUnsafe(i, false);
+			IRouter r = SimpleServiceLocator.routerManager.getServerRouter(i);
 
-			if (!r.isValidCache()) {
+			if (r.isCacheInvalid()) {
 				continue; //Skip Routers without a valid pipe
 			}
 
@@ -104,14 +104,13 @@ public class RequestTreeNode {
 			}
 		}
 		// closer providers are good
-		Collections.sort(validSources, new workWeightedSorter(1.0));
+		validSources.sort(new workWeightedSorter(1.0));
 
 		List<Pair<IProvide, List<IFilter>>> providers = new LinkedList<>();
 		validSources.stream().filter(r -> r.containsFlag(PipeRoutingConnectionType.canRequestFrom)).forEach(r -> {
 			CoreRoutedPipe pipe = r.destination.getPipe();
 			if (pipe instanceof IProvide) {
-				List<IFilter> list = new LinkedList<>();
-				list.addAll(r.filters);
+				List<IFilter> list = new LinkedList<>(r.filters);
 				providers.add(new Pair<>((IProvide) pipe, list));
 			}
 		});
@@ -120,6 +119,7 @@ public class RequestTreeNode {
 
 	private static List<Pair<ICraftingTemplate, List<IFilter>>> getCrafters(IResource iRequestType, List<ExitRoute> validDestinations) {
 		List<Pair<ICraftingTemplate, List<IFilter>>> crafters = new ArrayList<>(validDestinations.size());
+		outer:
 		for (ExitRoute r : validDestinations) {
 			CoreRoutedPipe pipe = r.destination.getPipe();
 			if (r.containsFlag(PipeRoutingConnectionType.canRequestFrom)) {
@@ -128,11 +128,10 @@ public class RequestTreeNode {
 					if (craftable != null) {
 						for (IFilter filter : r.filters) {
 							if (filter.isBlocked() == filter.isFilteredItem(craftable.getResultItem()) || filter.blockCrafting()) {
-								continue;
+								continue outer;
 							}
 						}
-						List<IFilter> list = new LinkedList<>();
-						list.addAll(r.filters);
+						List<IFilter> list = new LinkedList<>(r.filters);
 						crafters.add(new Pair<>(craftable, list));
 					}
 				}
@@ -146,14 +145,14 @@ public class RequestTreeNode {
 	protected static List<IResource> shrinkToList(Map<IResource, Integer> items) {
 		List<IResource> resources = new ArrayList<>();
 		outer:
-			for (Entry<IResource, Integer> entry : items.entrySet()) {
-				for (IResource resource : resources) {
-					if (resource.mergeForDisplay(entry.getKey(), entry.getValue())) {
-						continue outer;
-					}
+		for (Entry<IResource, Integer> entry : items.entrySet()) {
+			for (IResource resource : resources) {
+				if (resource.mergeForDisplay(entry.getKey(), entry.getValue())) {
+					continue outer;
 				}
-				resources.add(entry.getKey().copyForDisplayWith(entry.getValue()));
 			}
+			resources.add(entry.getKey().copyForDisplayWith(entry.getValue()));
+		}
 		return resources;
 	}
 
@@ -262,11 +261,10 @@ public class RequestTreeNode {
 			if (extras == null) {
 				continue;
 			}
-			for (Iterator<IExtraPromise> it = extras.iterator(); it.hasNext();) {
+			for (Iterator<IExtraPromise> it = extras.iterator(); it.hasNext(); ) {
 				IExtraPromise extra = it.next();
 				if (extra.getAmount() >= usedcount) {
 					extra.lowerAmount(usedcount);
-					usedcount = 0;
 					break;
 				} else {
 					usedcount -= extra.getAmount();
@@ -350,7 +348,7 @@ public class RequestTreeNode {
 			if (isDone()) {
 				break;
 			}
-			if (provider.getValue1() == null || provider.getValue1().getRouter() == null || provider.getValue1().getRouter().getPipe() == null) {
+			if (provider.getValue1() == null || provider.getValue1().getRouter().getPipe() == null) {
 				continue;
 			}
 			if (!thisPipe.sharesInterestWith(provider.getValue1().getRouter().getPipe())) {
@@ -372,18 +370,18 @@ public class RequestTreeNode {
 			boolean valid = false;
 			List<ExitRoute> sources = extraPromise.getProvider().getRouter().getRouteTable().get(getRequestType().getRouter().getSimpleID());
 			outer:
-				for (ExitRoute source : sources) {
-					if (source != null && source.containsFlag(PipeRoutingConnectionType.canRouteTo)) {
-						for (ExitRoute node : getRequestType().getRouter().getIRoutersByCost()) {
-							if (node.destination == extraPromise.getProvider().getRouter()) {
-								if (node.containsFlag(PipeRoutingConnectionType.canRequestFrom)) {
-									valid = true;
-									break outer;
-								}
+			for (ExitRoute source : sources) {
+				if (source != null && source.containsFlag(PipeRoutingConnectionType.canRouteTo)) {
+					for (ExitRoute node : getRequestType().getRouter().getIRoutersByCost()) {
+						if (node.destination == extraPromise.getProvider().getRouter()) {
+							if (node.containsFlag(PipeRoutingConnectionType.canRequestFrom)) {
+								valid = true;
+								break outer;
 							}
 						}
 					}
 				}
+			}
 			if (valid) {
 				extraPromise.setAmount(Math.min(extraPromise.getAmount(), getMissingAmount()));
 				addPromise(extraPromise);
@@ -398,9 +396,9 @@ public class RequestTreeNode {
 		BitSet routersIndex = ServerRouter.getRoutersInterestedIn(getRequestType());
 		List<ExitRoute> validSources = new ArrayList<>(); // get the routing table
 		for (int i = routersIndex.nextSetBit(0); i >= 0; i = routersIndex.nextSetBit(i + 1)) {
-			IRouter r = SimpleServiceLocator.routerManager.getRouterUnsafe(i, false);
+			IRouter r = SimpleServiceLocator.routerManager.getServerRouter(i);
 
-			if (!r.isValidCache()) {
+			if (r.isCacheInvalid()) {
 				continue; //Skip Routers without a valid pipe
 			}
 
@@ -425,110 +423,110 @@ public class RequestTreeNode {
 		Pair<ICraftingTemplate, List<IFilter>> lastCrafter = null;
 		int currentPriority = 0;
 		outer:
-			while (!done) {
+		while (!done) {
 
 			/// First: Create a list of all crafters with the same priority (craftersSamePriority).
-				if (iterAllCrafters.hasNext()) {
-					if (lastCrafter == null) {
-						lastCrafter = iterAllCrafters.next();
-					}
-				} else if (lastCrafter == null) {
-					done = true;
+			if (iterAllCrafters.hasNext()) {
+				if (lastCrafter == null) {
+					lastCrafter = iterAllCrafters.next();
 				}
+			} else if (lastCrafter == null) {
+				done = true;
+			}
 
 			int itemsNeeded = getMissingAmount();
 
 			if (lastCrafter != null && (craftersSamePriority.isEmpty() || (currentPriority == lastCrafter.getValue1().getPriority()))) {
-					currentPriority = lastCrafter.getValue1().getPriority();
-					Pair<ICraftingTemplate, List<IFilter>> crafter = lastCrafter;
-					lastCrafter = null;
-					ICraftingTemplate template = crafter.getValue1();
-					if (isCrafterUsed(template)) {
-						continue;
-					}
-					if (!template.canCraft(getRequestType())) {
-						continue; // we this is crafting something else
-					}
-					for (IFilter filter : crafter.getValue2()) { // is this filtered for some reason.
-						if (filter.isBlocked() == filter.isFilteredItem(template.getResultItem()) || filter.blockCrafting()) {
-							continue outer;
-						}
-					}
-					CraftingSorterNode cn = new CraftingSorterNode(crafter, itemsNeeded, root, this);
-				//				if(cn.getWorkSetsAvailableForCrafting()>0)
-				craftersSamePriority.add(cn);
+				currentPriority = lastCrafter.getValue1().getPriority();
+				Pair<ICraftingTemplate, List<IFilter>> crafter = lastCrafter;
+				lastCrafter = null;
+				ICraftingTemplate template = crafter.getValue1();
+				if (isCrafterUsed(template)) {
 					continue;
 				}
-				if (craftersToBalance.isEmpty() && (craftersSamePriority == null || craftersSamePriority.isEmpty())) {
-					continue; //nothing at this priority was available for crafting
+				if (!template.canCraft(getRequestType())) {
+					continue; // we this is crafting something else
 				}
-				/// end of crafter prioriy selection.
+				for (IFilter filter : crafter.getValue2()) { // is this filtered for some reason.
+					if (filter.isBlocked() == filter.isFilteredItem(template.getResultItem()) || filter.blockCrafting()) {
+						continue outer;
+					}
+				}
+				CraftingSorterNode cn = new CraftingSorterNode(crafter, itemsNeeded, root, this);
+				//				if(cn.getWorkSetsAvailableForCrafting()>0)
+				craftersSamePriority.add(cn);
+				continue;
+			}
+			if (craftersToBalance.isEmpty() && (craftersSamePriority == null || craftersSamePriority.isEmpty())) {
+				continue; //nothing at this priority was available for crafting
+			}
+			/// end of crafter prioriy selection.
 
-				if (craftersSamePriority.size() == 1) { // then no need to balance.
-					craftersToBalance.add(craftersSamePriority.poll());
-					// automatically capped at the real amount of extra work.
-					craftersToBalance.get(0).addToWorkRequest(itemsNeeded);
-				} else {
+			if (craftersSamePriority.size() == 1) { // then no need to balance.
+				craftersToBalance.add(craftersSamePriority.poll());
+				// automatically capped at the real amount of extra work.
+				craftersToBalance.get(0).addToWorkRequest(itemsNeeded);
+			} else {
 				//				for(CraftingSorterNode c:craftersSamePriority)
 				//					c.clearWorkRequest(); // so the max request isn't in there; nothing is reserved, balancing can work correctly.
 
 				// go through this list, pull the crafter(s) with least work, add work until either they can not do more work,
-					//   or the amount of work they have is equal to the next-least busy crafter. then pull the next crafter and repeat.
-					if (!craftersSamePriority.isEmpty()) {
+				//   or the amount of work they have is equal to the next-least busy crafter. then pull the next crafter and repeat.
+				if (!craftersSamePriority.isEmpty()) {
+					craftersToBalance.add(craftersSamePriority.poll());
+				}
+				// while we crafters that can work and we have work to do.
+				while (!craftersToBalance.isEmpty() && itemsNeeded > 0) {
+					//while there is more, and the next crafter has the same toDo as the current one, add it to craftersToBalance.
+					//  typically pulls 1 at a time, but may pull multiple, if they have the exact same todo.
+					while (!craftersSamePriority.isEmpty() && craftersSamePriority.peek().currentToDo() <= craftersToBalance.get(0).currentToDo()) {
 						craftersToBalance.add(craftersSamePriority.poll());
 					}
-					// while we crafters that can work and we have work to do.
-					while (!craftersToBalance.isEmpty() && itemsNeeded > 0) {
-						//while there is more, and the next crafter has the same toDo as the current one, add it to craftersToBalance.
-						//  typically pulls 1 at a time, but may pull multiple, if they have the exact same todo.
-						while (!craftersSamePriority.isEmpty() && craftersSamePriority.peek().currentToDo() <= craftersToBalance.get(0).currentToDo()) {
-							craftersToBalance.add(craftersSamePriority.poll());
-						}
 
 					// find the most we can add this iteration
-						int cap;
-						if (!craftersSamePriority.isEmpty()) {
-							cap = craftersSamePriority.peek().currentToDo();
-						} else {
-							cap = Integer.MAX_VALUE;
-						}
+					int cap;
+					if (!craftersSamePriority.isEmpty()) {
+						cap = craftersSamePriority.peek().currentToDo();
+					} else {
+						cap = Integer.MAX_VALUE;
+					}
 
 					//split the work between N crafters, up to "cap" (at which point we would be dividing the work between N+1 crafters.
-						int floor = craftersToBalance.get(0).currentToDo();
-						cap = Math.min(cap, floor + (itemsNeeded + craftersToBalance.size() - 1) / craftersToBalance.size());
+					int floor = craftersToBalance.get(0).currentToDo();
+					cap = Math.min(cap, floor + (itemsNeeded + craftersToBalance.size() - 1) / craftersToBalance.size());
 
-						for (CraftingSorterNode crafter : craftersToBalance) {
-							int request = Math.min(itemsNeeded, cap - floor);
-							if (request > 0) {
-								int craftingDone = crafter.addToWorkRequest(request);
-								itemsNeeded -= craftingDone; // ignored under-crafting
-							}
+					for (CraftingSorterNode crafter : craftersToBalance) {
+						int request = Math.min(itemsNeeded, cap - floor);
+						if (request > 0) {
+							int craftingDone = crafter.addToWorkRequest(request);
+							itemsNeeded -= craftingDone; // ignored under-crafting
 						}
+					}
 
 				} // all craftersToBalance exhausted, or work completed.
 
 			}// end of else more than 1 crafter at this priority
-				// commit this work set.
-				Iterator<CraftingSorterNode> iter = craftersToBalance.iterator();
-				while (iter.hasNext()) {
-					CraftingSorterNode c = iter.next();
-					if (c.stacksOfWorkRequested > 0 && !c.addWorkPromisesToTree()) { // then it ran out of resources
-						iter.remove();
+			// commit this work set.
+			Iterator<CraftingSorterNode> iter = craftersToBalance.iterator();
+			while (iter.hasNext()) {
+				CraftingSorterNode c = iter.next();
+				if (c.stacksOfWorkRequested > 0 && !c.addWorkPromisesToTree()) { // then it ran out of resources
+					iter.remove();
 				}
 
-				}
-				itemsNeeded = getMissingAmount();
+			}
+			itemsNeeded = getMissingAmount();
 
 			if (itemsNeeded <= 0) {
-					break outer; // we have everything we need for this crafting request
-				}
-
-				// don't clear, because we might have under-requested, and need to consider these again
-				if (!craftersToBalance.isEmpty()) {
-					done = false;
-				//craftersSamePriority.clear(); // we've extracted all we can from these priority crafters, and we still have more to do, back to the top to get the next priority level.
-				}
+				break; // we have everything we need for this crafting request
 			}
+
+			// don't clear, because we might have under-requested, and need to consider these again
+			if (!craftersToBalance.isEmpty()) {
+				done = false;
+				//craftersSamePriority.clear(); // we've extracted all we can from these priority crafters, and we still have more to do, back to the top to get the next priority level.
+			}
+		}
 		//LogisticsPipes.log.info("done");
 		return isDone();
 	}
@@ -565,7 +563,7 @@ public class RequestTreeNode {
 
 			return generateRequestTreeFor(workSetsAvailable, template);
 		}
-		byproducts.addAll(template.getByproducts(workSetsAvailable).stream().collect(Collectors.toList()));
+		byproducts.addAll(new ArrayList<>(template.getByproducts(workSetsAvailable)));
 		return workSetsAvailable;
 	}
 
@@ -588,7 +586,7 @@ public class RequestTreeNode {
 				return 0;
 			}
 		}
-		byproducts.addAll(template.getByproducts(workSets).stream().collect(Collectors.toList()));
+		byproducts.addAll(new ArrayList<>(template.getByproducts(workSets)));
 		return workSets;
 	}
 
@@ -661,9 +659,8 @@ public class RequestTreeNode {
 			}
 
 			ICraftingTemplate template = crafter.getValue1();
-			int stacks = getSubRequests(nCraftingSetsNeeded, template);
 
-			return stacks;
+			return getSubRequests(nCraftingSetsNeeded, template);
 		}
 
 		int addToWorkRequest(int extraWork) {

@@ -24,7 +24,7 @@ item.logisticspipes.pipe_request.tip4= - Put a chest on the pipe to catch items 
 
 item.logisticspipes.pipe_request_mk2.name=Request Logistics Pipe Mk2
 item.logisticspipes.pipe_request_mk2.tip1=Type: Active requester
-item.logisticspipes.pipe_request_mk2.tip2= - Faster then a Mk1
+item.logisticspipes.pipe_request_mk2.tip2= - Can have a Logistics Disk for macro requests
 item.logisticspipes.pipe_request_mk2.tip3= - Lets you manually request items
 item.logisticspipes.pipe_request_mk2.tip4= - Items can come from any Source pipe
 item.logisticspipes.pipe_request_mk2.tip5= - Put a chest on the pipe to catch items coming out.
@@ -78,23 +78,23 @@ item.logisticspipes.pipe_builder_supplier.tip2= - Automatically fills a builder 
 
 item.logisticspipes.pipe_chassis_mk1.name=Logistics Chassis Mk1
 item.logisticspipes.pipe_chassis_mk1.tip1=Type: Mixed
-item.logisticspipes.pipe_chassis_mk1.tip2= - Can hold 1 module.
+item.logisticspipes.pipe_chassis_mk1.tip2= - Can hold 1 module by default.
 
 item.logisticspipes.pipe_chassis_mk2.name=Logistics Chassis Mk2
 item.logisticspipes.pipe_chassis_mk2.tip1=Type: Mixed
-item.logisticspipes.pipe_chassis_mk2.tip2= - Can hold 2 modules.
+item.logisticspipes.pipe_chassis_mk2.tip2= - Can hold 2 modules by default.
 
 item.logisticspipes.pipe_chassis_mk3.name=Logistics Chassis Mk3
 item.logisticspipes.pipe_chassis_mk3.tip1=Type: Mixed
-item.logisticspipes.pipe_chassis_mk3.tip2= - Can hold 3 modules.
+item.logisticspipes.pipe_chassis_mk3.tip2= - Can hold 3 modules by default.
 
 item.logisticspipes.pipe_chassis_mk4.name=Logistics Chassis Mk4
 item.logisticspipes.pipe_chassis_mk4.tip1=Type: Mixed
-item.logisticspipes.pipe_chassis_mk4.tip2= - Can hold 4 modules.
+item.logisticspipes.pipe_chassis_mk4.tip2= - Can hold 4 modules by default.
 
 item.logisticspipes.pipe_chassis_mk5.name=Logistics Chassis Mk5
 item.logisticspipes.pipe_chassis_mk5.tip1=Type: Mixed
-item.logisticspipes.pipe_chassis_mk5.tip2= - Can hold 8 modules.
+item.logisticspipes.pipe_chassis_mk5.tip2= - Can hold 8 modules by default.
 
 item.logisticspipes.pipe_remote_orderer.name=Remote Orderer Logistics Pipe
 item.logisticspipes.pipe_remote_orderer.tip1=Type: Active requester
@@ -207,6 +207,7 @@ item.logisticspipes.chip_advanced.name=Advanced Chip
 item.logisticspipes.chip_advanced_raw.name=Raw Advanced Chip
 item.logisticspipes.chip_fpga.name=FPGA
 item.logisticspipes.chip_fpga_raw.name=Raw FPGA
+item.logisticspipes.guide_book.name=Logistics Pipes' Guide Book
 
 # Tooltips
 tooltip.brokenItem.1=This is an useless item
@@ -217,7 +218,9 @@ tooltip.logisticsItemCard=This is no valid Card
 tooltip.programmerForModule=Module program loaded
 tooltip.programmerForPipe=Pipe program loaded
 tooltip.programmerForUpgrade=Upgrade program loaded
-tooltip.programmerForUnknown=No valid program loaded
+tooltip.programmerForUnknown.1=%cRED No valid program loaded %cRESET
+tooltip.programmerForUnknown.2=%cRED YOU %cITALIC NEED %cRESET %cRED TO FLASH A PROGRAM %cRESET
+tooltip.programmerForUnknown.3=%cRED BEFORE YOU CAN USE THIS FOR CRAFTING %cRESET
 
 # Upgrades
 
@@ -345,6 +348,8 @@ gui.crafting.IgnNBT=IgnNBT
 gui.crafting.OrePrefix=OrePrefix
 gui.crafting.Include=Include
 gui.crafting.Exclude=Exclude
+gui.crafting.Select=Select
+gui.crafting.Sel=Sel
 
 gui.firewall.Blocked=Blocked
 gui.firewall.Allowed=Allowed
@@ -408,7 +413,7 @@ gui.routingstats.Relayed=Relayed
 gui.routingstats.RoutingTableSize=RoutingTableSize
 gui.routingstats.exit=Press <ESC> to exit
 
-gui.satellite.SatelliteID=Satellite ID
+gui.satellite.SatelliteName=Satellite Name
 
 gui.securitystation.Open=Open
 gui.securitystation.EditTable=Edit Table
@@ -469,6 +474,10 @@ gui.compiler.logisticspipes.compilercategory.chassis_2=Chassis 2
 gui.compiler.logisticspipes.compilercategory.chassis_3=Chassis 3
 gui.compiler.logisticspipes.compilercategory.modded=Modded
 
+gui.compiler.processing=Processing...
+gui.compiler.nopower.1=%cRED No power %cRESET
+gui.compiler.nopower.2=%cRED Connect to LP network %cRESET
+
 gui.settings.pipenewrenderer=Use New Renderer
 gui.settings.pipefallbackrenderer=Use Fallback Renderer
 gui.settings.piperenderdistance=Max. Distance for new Renderer
@@ -492,6 +501,11 @@ gui.popup.managechannel.title=Channel Manager
 gui.popup.managechannel.deletedialog.title=Do you really want to delete this channel?
 gui.popup.managechannel.deletedialog.yes=Yes
 gui.popup.managechannel.deletedialog.no=No
+
+gui.popup.selectsatellite.title=Select Satellite Pipe
+gui.popup.selectsatellite.select=Select
+gui.popup.selectsatellite.exit=Exit
+gui.popup.selectsatellite.unset=Unset
 
 itemstackinfo.lprouteditem=%cRED Item with stored LogisticsPipes routing information
 itemstackinfo.lproutediteminfo=%cYELLOW Drop to remove routing information and get original items back

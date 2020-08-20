@@ -1,6 +1,5 @@
 /**
  * Copyright (c) Krapht, 2011
- * 
  * "LogisticsPipes" is distributed under the terms of the Minecraft Mod Public
  * License 1.0, or MMPL. Please check the contents of the license located in
  * http://www.mod-buildcraft.com/MMPL-1.0.txt
@@ -103,7 +102,7 @@ public class ItemCraftingTemplate implements IReqCraftingTemplate {
 		if (type instanceof ItemResource) {
 			return ((ItemResource) type).getItem().equals(_result.getItem());
 		} else if (type instanceof DictResource) {
-			return ((DictResource) type).matches(_result.getItem(), IResource.MatchSettings.NORMAL);
+			return type.matches(_result.getItem(), IResource.MatchSettings.NORMAL);
 		}
 		return false;
 	}
@@ -120,10 +119,9 @@ public class ItemCraftingTemplate implements IReqCraftingTemplate {
 
 	@Override
 	public List<IExtraPromise> getByproducts(int workSets) {
-		List<IExtraPromise> list = _byproduct.stream()
+		return _byproduct.stream()
 				.map(stack -> new LogisticsExtraPromise(stack.getItem(), stack.getStackSize() * workSets, getCrafter(), false))
 				.collect(Collectors.toList());
-		return list;
 	}
 
 	@Override

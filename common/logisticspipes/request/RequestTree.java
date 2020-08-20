@@ -7,6 +7,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import net.minecraft.init.Blocks;
+import net.minecraft.item.Item;
+
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.interfaces.routing.IProvide;
 import logisticspipes.interfaces.routing.IRequestFluid;
@@ -22,12 +25,9 @@ import logisticspipes.utils.IHavePriority;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
-import net.minecraft.init.Blocks;
-import net.minecraft.item.Item;
-
 public class RequestTree extends RequestTreeNode {
 
-	public static enum ActiveRequestType {
+	public enum ActiveRequestType {
 		Provide,
 		Craft,
 		AcceptPartial,
@@ -114,7 +114,7 @@ public class RequestTree extends RequestTreeNode {
 
 		@Override
 		public int compare(ExitRoute o1, ExitRoute o2) {
-			int c = 0;
+			int c;
 			if (o1.destination.getPipe() instanceof IHavePriority) {
 				if (o2.destination.getPipe() instanceof IHavePriority) {
 					c = ((IHavePriority) o2.destination.getCachedPipe()).getPriority() - ((IHavePriority) o1.destination.getCachedPipe()).getPriority();

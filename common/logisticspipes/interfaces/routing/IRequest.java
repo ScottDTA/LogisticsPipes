@@ -1,10 +1,13 @@
 package logisticspipes.interfaces.routing;
 
+import javax.annotation.Nonnull;
+
 import logisticspipes.routing.IRouter;
 
 public interface IRequest {
 
-	public IRouter getRouter();
+	@Nonnull
+	IRouter getRouter();
 
-	public int getID();
+	int getID();
 }

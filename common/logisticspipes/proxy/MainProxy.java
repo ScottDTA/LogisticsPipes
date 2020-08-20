@@ -2,17 +2,11 @@ package logisticspipes.proxy;
 
 import java.io.File;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.stream.Stream;
+import javax.annotation.Nonnull;
 
-import com.google.common.collect.Maps;
-import logisticspipes.LPItems;
-import logisticspipes.entity.FakePlayerLP;
-import lombok.val;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.EntityEquipmentSlot;
@@ -24,10 +18,10 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.event.world.WorldEvent;
-import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.SidedProxy;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.network.FMLEmbeddedChannel;
@@ -36,10 +30,14 @@ import net.minecraftforge.fml.common.network.FMLOutboundHandler.OutboundTarget;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 
+import com.google.common.collect.Maps;
 import lombok.Getter;
 
+import logisticspipes.LPItems;
 import logisticspipes.LogisticsEventListener;
 import logisticspipes.LogisticsPipes;
+import logisticspipes.entity.FakePlayerLP;
+import logisticspipes.modules.LogisticsModule;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.PacketInboundHandler;
 import logisticspipes.network.abstractpackets.ModernPacket;
@@ -89,7 +87,7 @@ public class MainProxy {
 	}
 
 	public static boolean isClient(IBlockAccess blockAccess) {
-		if(blockAccess instanceof World) {
+		if (blockAccess instanceof World) {
 			World world = (World) blockAccess;
 			try {
 				return world.isRemote;
@@ -111,7 +109,7 @@ public class MainProxy {
 	}
 
 	public static boolean isServer(IBlockAccess blockAccess) {
-		if(blockAccess instanceof World) {
+		if (blockAccess instanceof World) {
 			World world = (World) blockAccess;
 			try {
 				return !world.isRemote;
@@ -189,6 +187,17 @@ public class MainProxy {
 		return !players.isEmptyWithoutCheck();
 	}
 
+	public static void sendPacketToAllWatchingChunk(LogisticsModule module, ModernPacket packet) {
+		if (module.getSlot().isInWorld()) {
+			final BlockPos pos = module.getBlockPos();
+			sendPacketToAllWatchingChunk(pos.getX(), pos.getZ(), module.getWorld().provider.getDimension(), packet);
+		} else {
+			if (LogisticsPipes.isDEBUG()) {
+				throw new IllegalStateException("sendPacketToAllWatchingChunk for module in hand was called");
+			}
+		}
+	}
+
 	public static void sendPacketToAllWatchingChunk(TileEntity tile, ModernPacket packet) {
 		sendPacketToAllWatchingChunk(tile.getPos().getX(), tile.getPos().getZ(), tile.getWorld().provider.getDimension(), packet);
 	}
@@ -207,7 +216,6 @@ public class MainProxy {
 					MainProxy.sendPacketToPlayer(packet, player);
 				}
 			}
-			return;
 		}
 	}
 
@@ -297,7 +305,7 @@ public class MainProxy {
 		MainProxy.globalTick++;
 	}
 
-	public static EntityItem dropItems(World world, ItemStack stack, int xCoord, int yCoord, int zCoord) {
+	public static EntityItem dropItems(World world, @Nonnull ItemStack stack, int xCoord, int yCoord, int zCoord) {
 		EntityItem item = new EntityItem(world, xCoord, yCoord, zCoord, stack);
 		world.spawnEntity(item);
 		return item;

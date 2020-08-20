@@ -13,9 +13,9 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.locks.Lock;
@@ -48,8 +48,6 @@ import net.minecraft.world.World;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.ModContainer;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.registries.ForgeRegistry;
 
 import lombok.AllArgsConstructor;
@@ -64,11 +62,11 @@ import logisticspipes.utils.ReflectionHelper;
 
 /**
  * @author Krapht I have no bloody clue what different mods use to differate
- *         between items except for itemID, there is metadata, damage, and
- *         whatnot. so..... to avoid having to change all my bloody code every
- *         time I need to support a new item targeted that would make it a
- *         "different" item, I made this cache here A ItemIdentifier is
- *         immutable, singleton and most importantly UNIQUE!
+ * between items except for itemID, there is metadata, damage, and
+ * whatnot. so..... to avoid having to change all my bloody code every
+ * time I need to support a new item targeted that would make it a
+ * "different" item, I made this cache here A ItemIdentifier is
+ * immutable, singleton and most importantly UNIQUE!
  */
 public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTypeHolder {
 
@@ -124,7 +122,7 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
 
 	private static class MapDamagedItentifierHolder implements IDamagedIdentifierHolder {
 
-		private ConcurrentHashMap<Integer, ItemIdentifier> holder;
+		private final ConcurrentHashMap<Integer, ItemIdentifier> holder;
 
 		public MapDamagedItentifierHolder() {
 			holder = new ConcurrentHashMap<>(4096, 0.5f, 1);
@@ -237,8 +235,6 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
 		this.uniqueID = uniqueID;
 	}
 
-	private Object ccType;
-
 	public final Item item;
 	public final int itemDamage;
 	public final FinalNBTTagCompound tag;
@@ -253,8 +249,6 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
 	private boolean canHaveDict = true;
 	private String modName;
 	private String creativeTabName;
-
-	public static boolean allowNullsForTesting;
 
 	private static ItemIdentifier getOrCreateSimple(Item item, ItemIdentifier proposal) {
 		if (proposal != null) {
@@ -330,7 +324,7 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
 		} else {
 			nextUniqueID = r.uniqueID;
 		}
-		FinalNBTTagCompound finaltag = new FinalNBTTagCompound(tag.copy());
+		FinalNBTTagCompound finaltag = new FinalNBTTagCompound(tag);
 		ItemKey realKey = new ItemKey(item, damage, finaltag);
 		ItemIdentifier ret = new ItemIdentifier(item, damage, finaltag, nextUniqueID);
 		ItemIdentifier.keyRefMap.put(realKey, new IDReference(realKey, nextUniqueID, ret));
@@ -360,15 +354,13 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
 
 	@AllArgsConstructor
 	public static class ItemStackAddInfo implements IAddInfo {
+
 		private final ItemIdentifier ident;
 	}
 
 	@SuppressWarnings("ConstantConditions")
 	@Nonnull
-	public static ItemIdentifier get(ItemStack itemStack) {
-		if (itemStack.isEmpty() && ItemIdentifier.allowNullsForTesting) {
-			return null;
-		}
+	public static ItemIdentifier get(@Nonnull ItemStack itemStack) {
 		ItemIdentifier proposal = null;
 		IAddInfoProvider prov = null;
 		if (((Object) itemStack) instanceof IAddInfoProvider && !itemStack.hasTagCompound()) {
@@ -441,7 +433,7 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
 	}
 
 	@Nonnull
-	private String getName(ItemStack stack) {
+	private String getName(@Nonnull ItemStack stack) {
 		return item.getItemStackDisplayName(stack);
 	}
 
@@ -474,7 +466,6 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
 		return modName;
 	}
 
-	@SideOnly(Side.CLIENT)
 	public String getCreativeTabName() {
 		if (creativeTabName == null) {
 			CreativeTabs tab = item.getCreativeTab();
@@ -487,7 +478,7 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
 			}
 
 			if (tab != null) {
-				creativeTabName = tab.getTabLabel();
+				creativeTabName = tab.tabLabel;
 			}
 		}
 		return creativeTabName;
@@ -552,7 +543,6 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
 		return map;
 	}
 
-	@SuppressWarnings("rawtypes")
 	public static Map<Object, Object> getNBTBaseAsMap(NBTBase nbt) throws SecurityException, IllegalArgumentException {
 		if (nbt == null) return null;
 
@@ -587,10 +577,9 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
 			map.put("value", ItemIdentifier.getArrayAsMap(((NBTTagIntArray) nbt).getIntArray()));
 			return map;
 		} else if (nbt instanceof NBTTagList) {
-			List internal = ((NBTTagList) nbt).tagList;
 			HashMap<Integer, Object> content = new HashMap<>();
 			int i = 1;
-			for (Object object : internal) {
+			for (Object object : ((NBTTagList) nbt)) {
 				if (object instanceof NBTBase) {
 					content.put(i, ItemIdentifier.getNBTBaseAsMap((NBTBase) object));
 				}
@@ -601,16 +590,13 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
 			map.put("value", content);
 			return map;
 		} else if (nbt instanceof NBTTagCompound) {
-			Map internal = ((NBTTagCompound) nbt).tagMap;
 			HashMap<Object, Object> content = new HashMap<>();
 			HashMap<Integer, Object> keys = new HashMap<>();
 			int i = 1;
-			for (Object object : internal.entrySet()) {
-				Entry e = (Entry) object;
-				if (e.getValue() instanceof NBTBase) {
-					content.put(e.getKey(), ItemIdentifier.getNBTBaseAsMap((NBTBase) e.getValue()));
-					keys.put(i, e.getKey());
-				}
+			for (String key : ((NBTTagCompound) nbt).getKeySet()) {
+				NBTBase value = ((NBTTagCompound) nbt).getTag(key);
+				content.put(key, ItemIdentifier.getNBTBaseAsMap(value));
+				keys.put(i, key);
 				i++;
 			}
 			HashMap<Object, Object> map = new HashMap<>();
@@ -688,7 +674,7 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
 		return this.item == item.item && (item.isDamageable() || (itemDamage == item.itemDamage));
 	}
 
-	public boolean equalsWithoutNBT(ItemStack stack) {
+	public boolean equalsWithoutNBT(@Nonnull ItemStack stack) {
 		return item == stack.getItem() && itemDamage == stack.getItemDamage();
 	}
 
@@ -727,9 +713,7 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
 			getUndamaged().debugDumpData(isClient);
 		}
 		System.out.println("Mod: " + getModName());
-		if (isClient) {
-			System.out.println("CreativeTab: " + getCreativeTabName());
-		}
+		System.out.println("CreativeTab: " + getCreativeTabName());
 		if (getDictIdentifiers() != null) {
 			getDictIdentifiers().debugDumpData(isClient);
 		}
@@ -774,21 +758,21 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
 			sb.append(")");
 		} else if (nbt instanceof NBTTagList) {
 			sb.append("TagList(data=");
-			for (int i = 0; i < ((NBTTagList) nbt).tagList.size(); i++) {
-				debugDumpTag((((NBTTagList) nbt).tagList.get(i)), sb);
-				if (i < ((NBTTagList) nbt).tagList.size() - 1) {
+			for (int i = 0; i < ((NBTTagList) nbt).tagCount(); i++) {
+				debugDumpTag((((NBTTagList) nbt).get(i)), sb);
+				if (i < ((NBTTagList) nbt).tagCount() - 1) {
 					sb.append(",");
 				}
 			}
 			sb.append(")");
 		} else if (nbt instanceof NBTTagCompound) {
 			sb.append("TagCompound(data=");
-			Object[] oe = ((NBTTagCompound) nbt).tagMap.entrySet().toArray();
-			for (int i = 0; i < oe.length; i++) {
-				Entry<String, NBTBase> e = (Entry<String, NBTBase>) (oe[i]);
-				sb.append("\"").append(e.getKey()).append("\"=");
-				debugDumpTag((e.getValue()), sb);
-				if (i < oe.length - 1) {
+			for (Iterator<String> iter = ((NBTTagCompound) nbt).getKeySet().iterator(); iter.hasNext(); ) {
+				String key = iter.next();
+				NBTBase value = ((NBTTagCompound) nbt).getTag(key);
+				sb.append("\"").append(key).append("\"=");
+				debugDumpTag((value), sb);
+				if (iter.hasNext()) {
 					sb.append(",");
 				}
 			}
@@ -798,13 +782,4 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
 		}
 	}
 
-	@Override
-	public void setCCType(Object type) {
-		ccType = type;
-	}
-
-	@Override
-	public Object getCCType() {
-		return ccType;
-	}
 }

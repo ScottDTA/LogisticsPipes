@@ -1,9 +1,9 @@
 package logisticspipes.blocks.crafting;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -16,6 +16,7 @@ import net.minecraft.item.crafting.IRecipe;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.NonNullList;
 import net.minecraft.util.text.ITextComponent;
 
 import net.minecraftforge.common.capabilities.Capability;
@@ -197,40 +198,41 @@ public class LogisticsCraftingTableTileEntity extends LogisticsSolidTileEntity i
 		return fuzzyFlags[slot].matches(item2.getItem(), IResource.MatchSettings.NORMAL);
 	}
 
+	@Nonnull
 	public ItemStack getOutput(IResource wanted, IRoutedPowerProvider power) {
 		boolean isFuzzy = isFuzzy();
 		if (cache == null) {
 			cacheRecipe();
 			if (cache == null) {
-				return null;
+				return ItemStack.EMPTY;
 			}
 		}
 		int[] toUse = new int[9];
 		int[] used = new int[inv.getSizeInventory()];
 		outer:
-			for (int i = 0; i < 9; i++) {
-				ItemIdentifierStack item = matrix.getIDStackInSlot(i);
+		for (int i = 0; i < 9; i++) {
+			ItemIdentifierStack item = matrix.getIDStackInSlot(i);
+			if (item == null) {
+				toUse[i] = -1;
+				continue;
+			}
+			ItemIdentifier ident = item.getItem();
+			for (int j = 0; j < inv.getSizeInventory(); j++) {
+				item = inv.getIDStackInSlot(j);
 				if (item == null) {
-					toUse[i] = -1;
 					continue;
 				}
-				ItemIdentifier ident = item.getItem();
-				for (int j = 0; j < inv.getSizeInventory(); j++) {
-					item = inv.getIDStackInSlot(j);
-					if (item == null) {
-						continue;
-					}
-					if (isFuzzy ? (testFuzzy(ident, item, i)) : ident.equalsForCrafting(item.getItem())) {
-						if (item.getStackSize() > used[j]) {
-							used[j]++;
-							toUse[i] = j;
-							continue outer;
-						}
+				if (isFuzzy ? (testFuzzy(ident, item, i)) : ident.equalsForCrafting(item.getItem())) {
+					if (item.getStackSize() > used[j]) {
+						used[j]++;
+						toUse[i] = j;
+						continue outer;
 					}
 				}
-				//Not enough material
-				return null;
 			}
+			//Not enough material
+			return ItemStack.EMPTY;
+		}
 		AutoCraftingInventory crafter = new AutoCraftingInventory(placedBy);
 		for (int i = 0; i < 9; i++) {
 			int j = toUse[i];
@@ -241,7 +243,7 @@ public class LogisticsCraftingTableTileEntity extends LogisticsSolidTileEntity i
 		IRecipe recipe = cache;
 		outputFuzzyFlags.stack = resultInv.getIDStackInSlot(0);
 		if (!recipe.matches(crafter, getWorld())) {
-			if(isFuzzy && outputFuzzyFlags.getBitSet().nextSetBit(0) != -1) {
+			if (isFuzzy && outputFuzzyFlags.getBitSet().nextSetBit(0) != -1) {
 				recipe = null;
 				for (IRecipe r : CraftingUtil.getRecipeList()) {
 					if (r.matches(crafter, getWorld()) && outputFuzzyFlags.matches(ItemIdentifier.get(r.getRecipeOutput()), IResource.MatchSettings.NORMAL)) {
@@ -249,34 +251,34 @@ public class LogisticsCraftingTableTileEntity extends LogisticsSolidTileEntity i
 						break;
 					}
 				}
-				if(recipe == null) {
-					return null;
+				if (recipe == null) {
+					return ItemStack.EMPTY;
 				}
 			} else {
-				return null; //Fix MystCraft
+				return ItemStack.EMPTY; //Fix MystCraft
 			}
 		}
 		ItemStack result = recipe.getCraftingResult(crafter);
 		if (result.isEmpty()) {
-			return null;
+			return ItemStack.EMPTY;
 		}
-		if(isFuzzy && outputFuzzyFlags.getBitSet().nextSetBit(0) != -1) {
+		if (isFuzzy && outputFuzzyFlags.getBitSet().nextSetBit(0) != -1) {
 			if (!outputFuzzyFlags.matches(ItemIdentifier.get(result), IResource.MatchSettings.NORMAL)) {
-				return null;
+				return ItemStack.EMPTY;
 			}
 			if (!outputFuzzyFlags.matches(wanted.getAsItem(), IResource.MatchSettings.NORMAL)) {
-				return null;
+				return ItemStack.EMPTY;
 			}
 		} else {
 			if (!resultInv.getIDStackInSlot(0).getItem().equalsWithoutNBT(ItemIdentifier.get(result))) {
-				return null;
+				return ItemStack.EMPTY;
 			}
 			if (!wanted.matches(resultInv.getIDStackInSlot(0).getItem(), IResource.MatchSettings.WITHOUT_NBT)) {
-				return null;
+				return ItemStack.EMPTY;
 			}
 		}
 		if (!power.useEnergy(Configs.LOGISTICS_CRAFTING_TABLE_POWER_USAGE)) {
-			return null;
+			return ItemStack.EMPTY;
 		}
 		crafter = new AutoCraftingInventory(placedBy);
 		for (int i = 0; i < 9; i++) {
@@ -337,9 +339,10 @@ public class LogisticsCraftingTableTileEntity extends LogisticsSolidTileEntity i
 		}
 	}
 
-	public void handleNEIRecipePacket(ItemStack[] content) {
-		for (int i = 0; i < 9; i++) {
-			matrix.setInventorySlotContents(i, content[i]);
+	public void handleNEIRecipePacket(NonNullList<ItemStack> content) {
+		if (matrix.getSizeInventory() != content.size()) throw new IllegalStateException("Different sizes of matrix and inventory from packet");
+		for (int i = 0; i < content.size(); i++) {
+			matrix.setInventorySlotContents(i, content.get(i));
 		}
 		cacheRecipe();
 	}
@@ -416,7 +419,7 @@ public class LogisticsCraftingTableTileEntity extends LogisticsSolidTileEntity i
 
 	@Override
 	public boolean hasCapability(@Nonnull Capability<?> capability, @Nullable EnumFacing facing) {
-		if(capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
+		if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
 			return true;
 		}
 		return super.hasCapability(capability, facing);
@@ -425,7 +428,7 @@ public class LogisticsCraftingTableTileEntity extends LogisticsSolidTileEntity i
 	@Nullable
 	@Override
 	public <T> T getCapability(@Nonnull Capability<T> capability, @Nullable EnumFacing facing) {
-		if(capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
+		if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
 			return (T) invWrapper;
 		}
 		return super.getCapability(capability, facing);
@@ -485,7 +488,7 @@ public class LogisticsCraftingTableTileEntity extends LogisticsSolidTileEntity i
 		if (i < 9 && i >= 0) {
 			ItemIdentifierStack stack = matrix.getIDStackInSlot(i);
 			if (stack != null && !itemstack.isEmpty()) {
-				if(isFuzzy() && fuzzyFlags[i].getBitSet().nextSetBit(0) != -1) {
+				if (isFuzzy() && fuzzyFlags[i].getBitSet().nextSetBit(0) != -1) {
 					fuzzyFlags[i].stack = stack;
 					return fuzzyFlags[i].matches(ItemIdentifier.get(itemstack), IResource.MatchSettings.NORMAL);
 				}
@@ -540,6 +543,7 @@ public class LogisticsCraftingTableTileEntity extends LogisticsSolidTileEntity i
 		guiWatcher.remove(player);
 	}
 
+	@Nonnull
 	@Override
 	public String getName() {
 		return "LogisticsCraftingTable";
@@ -550,6 +554,7 @@ public class LogisticsCraftingTableTileEntity extends LogisticsSolidTileEntity i
 		return true;
 	}
 
+	@Nonnull
 	@Override
 	public ITextComponent getDisplayName() {
 		return null;

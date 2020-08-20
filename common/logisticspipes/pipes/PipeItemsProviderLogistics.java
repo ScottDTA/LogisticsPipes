@@ -1,6 +1,5 @@
 /**
  * Copyright (c) Krapht, 2011
- * 
  * "LogisticsPipes" is distributed under the terms of the Minecraft Mod Public
  * License 1.0, or MMPL. Please check the contents of the license located in
  * http://www.mod-buildcraft.com/MMPL-1.0.txt
@@ -17,15 +16,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 
 import logisticspipes.LogisticsPipes;
@@ -44,8 +45,8 @@ import logisticspipes.logistics.LogisticsManager;
 import logisticspipes.logisticspipes.ExtractionMode;
 import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
+import logisticspipes.modules.LogisticsModule;
 import logisticspipes.modules.ModuleProvider;
-import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.network.GuiIDs;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.packets.hud.ChestContent;
@@ -78,8 +79,8 @@ import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierInventory;
 import logisticspipes.utils.item.ItemIdentifierStack;
 import logisticspipes.utils.tuples.Pair;
+import network.rs485.logisticspipes.connection.NeighborTileEntity;
 import network.rs485.logisticspipes.world.WorldCoordinatesWrapper;
-import network.rs485.logisticspipes.world.WorldCoordinatesWrapper.AdjacentTileEntity;
 
 public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvideItems, IHeadUpDisplayRendererProvider, IChestContentReceiver, IChangeListener, IOrderManagerContentReceiver {
 
@@ -117,24 +118,21 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvi
 	}
 
 	public int getTotalItemCount(ItemIdentifier item) {
-
 		if (!isEnabled()) {
 			return 0;
 		}
 
-		//Check if configurations allow for this item
+		// check if configurations allow for this item
 		if (hasFilter() && ((isExcludeFilter() && itemIsFiltered(item)) || (!isExcludeFilter() && !itemIsFiltered(item)))) {
 			return 0;
 		}
 
-		//@formatter:off
-		return new WorldCoordinatesWrapper(container).getConnectedAdjacentTileEntities(ConnectionPipeType.ITEM)
-				.filter(adjacent -> !SimpleServiceLocator.pipeInformationManager.isItemPipe(adjacent.tileEntity))
+		return new WorldCoordinatesWrapper(container).connectedTileEntities(ConnectionPipeType.ITEM)
+				.filter(adjacent -> !SimpleServiceLocator.pipeInformationManager.isItemPipe(adjacent.getTileEntity()))
 				.map(this::getAdaptedInventoryUtil)
 				.filter(Objects::nonNull)
 				.map(util -> util.itemCount(item))
 				.reduce(Integer::sum).orElse(0);
-		//@formatter:on
 	}
 
 	protected int neededEnergy() {
@@ -152,15 +150,14 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvi
 	private int sendStack(ItemIdentifierStack stack, int maxCount, int destination, IAdditionalTargetInformation info) {
 		ItemIdentifier item = stack.getItem();
 
-		WorldCoordinatesWrapper worldCoordinates = new WorldCoordinatesWrapper(container);
-
-		//@formatter:off
-		Iterator<Pair<IInventoryUtil, EnumFacing>> iterator = worldCoordinates.getConnectedAdjacentTileEntities(ConnectionPipeType.ITEM)
-				.filter(adjacent -> !SimpleServiceLocator.pipeInformationManager.isItemPipe(adjacent.tileEntity))
-				.filter(adjacent -> getAdaptedInventoryUtil(adjacent) != null)
-				.map(adjacent -> new Pair<>(getAdaptedInventoryUtil(adjacent), adjacent.direction))
+		final Iterator<Pair<IInventoryUtil, EnumFacing>> iterator = new WorldCoordinatesWrapper(container)
+				.connectedTileEntities(ConnectionPipeType.ITEM)
+				.filter(adjacent -> !SimpleServiceLocator.pipeInformationManager.isItemPipe(adjacent.getTileEntity()))
+				.flatMap(adjacent -> {
+					final IInventoryUtil invUtil = getAdaptedInventoryUtil(adjacent);
+					return invUtil == null ? Stream.empty() : Stream.of(new Pair<>(invUtil, adjacent.getDirection()));
+				})
 				.iterator();
-		//@formatter:on
 
 		while (iterator.hasNext()) {
 			Pair<IInventoryUtil, EnumFacing> next = iterator.next();
@@ -172,12 +169,12 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvi
 			int wanted = Math.min(available, stack.getStackSize());
 			wanted = Math.min(wanted, maxCount);
 			wanted = Math.min(wanted, item.getMaxStackSize());
-			IRouter dRtr = SimpleServiceLocator.routerManager.getRouterUnsafe(destination, false);
+			IRouter dRtr = SimpleServiceLocator.routerManager.getServerRouter(destination);
 			if (dRtr == null) {
 				_orderManager.sendFailed();
 				return 0;
 			}
-			SinkReply reply = LogisticsManager.canSink(dRtr, null, true, stack.getItem(), null, true, false);
+			SinkReply reply = LogisticsManager.canSink(stack.makeNormalStack(), dRtr, null, true, stack.getItem(), null, true, false);
 			boolean defersend = false;
 			if (reply != null) {// some pipes are not aware of the space in the adjacent inventory, so they return null
 				if (reply.maxNumberOfItems < wanted) {
@@ -193,7 +190,7 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvi
 				return -1;
 			}
 			ItemStack removed = next.getValue1().getMultipleItems(item, wanted);
-			if (removed == null || removed.getCount() == 0) {
+			if (removed.isEmpty()) {
 				continue;
 			}
 			int sent = removed.getCount();
@@ -213,23 +210,9 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvi
 		return 0;
 	}
 
-	private IInventoryUtil getAdaptedInventoryUtil(AdjacentTileEntity adjacent) {
-		ExtractionMode mode = getExtractionMode();
-		switch (mode) {
-			case LeaveFirst:
-				return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(adjacent.tileEntity, adjacent.direction.getOpposite(), false, false, 1, 0);
-			case LeaveLast:
-				return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(adjacent.tileEntity, adjacent.direction.getOpposite(), false, false, 0, 1);
-			case LeaveFirstAndLast:
-				return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(adjacent.tileEntity, adjacent.direction.getOpposite(), false, false, 1, 1);
-			case Leave1PerStack:
-				return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(adjacent.tileEntity, adjacent.direction.getOpposite(), true, false, 0, 0);
-			case Leave1PerType:
-				return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(adjacent.tileEntity, adjacent.direction.getOpposite(), false, true, 0, 0);
-			default:
-				break;
-		}
-		return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(adjacent.tileEntity, adjacent.direction.getOpposite(), false, false, 0, 0);
+	@Nullable
+	private IInventoryUtil getAdaptedInventoryUtil(NeighborTileEntity<TileEntity> adjacent) {
+		return CoreRoutedPipe.getInventoryForExtractionMode(getExtractionMode(), adjacent);
 	}
 
 	@Override
@@ -335,16 +318,13 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvi
 		}
 		HashMap<ItemIdentifier, Integer> addedItems = new HashMap<>();
 
-		WorldCoordinatesWrapper worldCoordinates = new WorldCoordinatesWrapper(container);
-
-		//@formatter:off
-		Iterator<Map<ItemIdentifier,Integer>> iterator = worldCoordinates.getConnectedAdjacentTileEntities(ConnectionPipeType.ITEM)
-				.filter(adjacent -> !SimpleServiceLocator.pipeInformationManager.isItemPipe(adjacent.tileEntity))
+		final Iterator<Map<ItemIdentifier, Integer>> iterator = new WorldCoordinatesWrapper(container)
+				.connectedTileEntities(ConnectionPipeType.ITEM)
+				.filter(adjacent -> !SimpleServiceLocator.pipeInformationManager.isItemPipe(adjacent.getTileEntity()))
 				.map(this::getAdaptedInventoryUtil)
 				.filter(Objects::nonNull)
 				.map(IInventoryUtil::getItemsAndCount)
 				.iterator();
-		//@formatter:on
 
 		outer:
 		while (iterator.hasNext()) {
@@ -362,7 +342,7 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvi
 					}
 				}
 
-				addedItems.merge(next.getKey(), next.getValue(), (a, b) -> a + b);
+				addedItems.merge(next.getKey(), next.getValue(), Integer::sum);
 			}
 		}
 
@@ -472,16 +452,18 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvi
 	}
 
 	@Override
-	//ToDo: work in progress, currently not active code.
-	public Set<ItemIdentifier> getSpecificInterests() {
-		//@formatter:off
-		return new WorldCoordinatesWrapper(container).getConnectedAdjacentTileEntities(ConnectionPipeType.ITEM)
-				.filter(adjacent -> !SimpleServiceLocator.pipeInformationManager.isItemPipe(adjacent.tileEntity))
-				.map(this::getAdaptedInventoryUtil)
-				.filter(Objects::nonNull)
-				.flatMap(inv -> inv.getItems().stream())
-				.collect(Collectors.toSet());
-		//@formatter:on
+	public void collectSpecificInterests(@Nonnull Collection<ItemIdentifier> itemidCollection) {
+		new WorldCoordinatesWrapper(container).connectedTileEntities(ConnectionPipeType.ITEM)
+				.flatMap(adjacent -> {
+					if (!SimpleServiceLocator.pipeInformationManager.isItemPipe(adjacent.getTileEntity())) {
+						final IInventoryUtil adjacentInventoryUtil = this.getAdaptedInventoryUtil(adjacent);
+						if (adjacentInventoryUtil != null) {
+							return adjacentInventoryUtil.getItems().stream();
+						}
+					}
+					return Stream.empty();
+				})
+				.forEach(itemidCollection::add);
 	}
 
 	@Override

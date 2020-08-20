@@ -4,16 +4,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import net.minecraft.client.gui.GuiButton;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.text.TextComponentString;
+
 import logisticspipes.request.resources.IResource;
 import logisticspipes.request.resources.IResource.ColorCode;
 import logisticspipes.utils.gui.GuiGraphics;
 import logisticspipes.utils.gui.SubGuiScreen;
 import logisticspipes.utils.item.ItemIdentifierStack;
 import logisticspipes.utils.string.StringUtils;
-
-import net.minecraft.client.gui.GuiButton;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.text.TextComponentString;
 
 public class GuiRequestPopup extends SubGuiScreen {
 
@@ -45,7 +45,6 @@ public class GuiRequestPopup extends SubGuiScreen {
 		this.player = player;
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public void initGui() {
 		super.initGui();
@@ -88,7 +87,7 @@ public class GuiRequestPopup extends SubGuiScreen {
 				for (String msg : text) {
 					player.sendMessage(new TextComponentString(msg));
 				}
-				((GuiButton) buttonList.get(1)).enabled = false;
+				buttonList.get(1).enabled = false;
 				break;
 		}
 	}

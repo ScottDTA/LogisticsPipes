@@ -2,17 +2,16 @@ package logisticspipes.proxy.buildcraft;
 
 import javax.annotation.Nonnull;
 
-import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 
 import buildcraft.api.mj.IMjConnector;
 import buildcraft.api.mj.IMjReceiver;
 import buildcraft.api.mj.MjAPI;
+import buildcraft.lib.tile.TileBC_Neptune;
 import buildcraft.transport.tile.TilePipeHolder;
 
 import logisticspipes.blocks.powertile.LogisticsPowerJunctionTileEntity;
-import logisticspipes.interfaces.ILPItemAcceptor;
 import logisticspipes.pipes.basic.ItemInsertionHandler;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
 import logisticspipes.proxy.SimpleServiceLocator;
@@ -39,8 +38,10 @@ public class BuildCraftProxy implements IBCProxy {
 
 	@Override
 	public void initProxy() {
+		LogisticsTileGenericPipe.pipeInventoryConnectionChecker.addSupportedClassType(TileBC_Neptune.class);
+
 		ItemInsertionHandler.ACCEPTORS.add((pipe, from, stack) -> {
-			if(stack.hasTagCompound() && stack.getTagCompound().hasKey("logisticspipes:routingdata_buildcraft")) {
+			if (!stack.isEmpty() && stack.hasTagCompound() && stack.getTagCompound().hasKey("logisticspipes:routingdata_buildcraft")) {
 				NBTTagCompound routingData = stack.getTagCompound().getCompoundTag("logisticspipes:routingdata_buildcraft");
 				ItemRoutingInformation info = ItemRoutingInformation.restoreFromNBT(routingData);
 				LPTravelingItem item = new LPTravelingItem.LPTravelingItemServer(info);
@@ -87,6 +88,7 @@ public class BuildCraftProxy implements IBCProxy {
 	@Override
 	public Object createMjReceiver(@Nonnull LogisticsPowerJunctionTileEntity te) {
 		return new IMjReceiver() {
+
 			@Override
 			public long getPowerRequested() {
 				return te.freeSpace() / LogisticsPowerJunctionTileEntity.MJMultiplier * MjAPI.MJ;

@@ -8,12 +8,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import javax.annotation.Nonnull;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.EnumFacing;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -24,12 +24,11 @@ import logisticspipes.interfaces.IHUDModuleRenderer;
 import logisticspipes.interfaces.IInventoryUtil;
 import logisticspipes.interfaces.IModuleInventoryReceive;
 import logisticspipes.interfaces.IModuleWatchReciver;
+import logisticspipes.interfaces.ISlotUpgradeManager;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.interfaces.routing.IRequestItems;
 import logisticspipes.interfaces.routing.IRequireReliableTransport;
 import logisticspipes.interfaces.routing.ITargetSlotInformation;
-import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
-import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.network.NewGuiHandler;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
@@ -43,40 +42,41 @@ import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.pipes.basic.debug.StatusEntry;
 import logisticspipes.proxy.MainProxy;
-import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.request.RequestTree;
 import logisticspipes.routing.IRouter;
 import logisticspipes.routing.pathfinder.IPipeInformationProvider.ConnectionPipeType;
 import logisticspipes.utils.ISimpleInventoryEventHandler;
 import logisticspipes.utils.PlayerCollectionList;
-import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierInventory;
 import logisticspipes.utils.item.ItemIdentifierStack;
+import network.rs485.logisticspipes.connection.NeighborTileEntity;
+import network.rs485.logisticspipes.module.Gui;
 import network.rs485.logisticspipes.world.WorldCoordinatesWrapper;
 
-public class ModuleActiveSupplier extends LogisticsGuiModule implements IRequestItems, IRequireReliableTransport, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, IModuleInventoryReceive, ISimpleInventoryEventHandler {
+public class ModuleActiveSupplier extends LogisticsModule implements IRequestItems, IRequireReliableTransport, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, IModuleInventoryReceive, ISimpleInventoryEventHandler, Gui {
 
 	private final PlayerCollectionList localModeWatchers = new PlayerCollectionList();
-
+	private final HashMap<ItemIdentifier, Integer> _requestedItems = new HashMap<>();
+	public int[] slotArray = new int[9];
 	private boolean _lastRequestFailed = false;
+	private ItemIdentifierInventory dummyInventory = new ItemIdentifierInventory(9, "", 127);
+	private SupplyMode _requestMode = SupplyMode.Bulk50;
+	private PatternMode _patternMode = PatternMode.Bulk50;
+	@Getter
+	@Setter
+	private boolean isLimited = true;
 
 	public ModuleActiveSupplier() {
 		dummyInventory.addListener(this);
 	}
 
-	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
-		return null;
+	public static String getName() {
+		return "active_supplier";
 	}
 
 	@Override
-	public LogisticsModule getSubModule(int slot) {
-		return null;
-	}
-
-	@Override
-	public List<String> getClientInformation() {
+	public @Nonnull List<String> getClientInformation() {
 		List<String> list = new ArrayList<>();
 		list.add("Supplied: ");
 		list.add("<inventory>");
@@ -129,11 +129,6 @@ public class ModuleActiveSupplier extends LogisticsGuiModule implements IRequest
 	}
 
 	@Override
-	public List<ItemIdentifier> getSpecificInterests() {
-		return new ArrayList<>(0);
-	}
-
-	@Override
 	public boolean interestedInAttachedInventory() {
 		return false;
 	}
@@ -157,33 +152,6 @@ public class ModuleActiveSupplier extends LogisticsGuiModule implements IRequest
 		_lastRequestFailed = value;
 	}
 
-	private ItemIdentifierInventory dummyInventory = new ItemIdentifierInventory(9, "", 127);
-
-	private final HashMap<ItemIdentifier, Integer> _requestedItems = new HashMap<>();
-
-	public enum SupplyMode {
-		Partial,
-		Full,
-		Bulk50,
-		Bulk100,
-		Infinite
-	}
-
-	public enum PatternMode {
-		Partial,
-		Full,
-		Bulk50,
-		Bulk100;
-	}
-
-	private SupplyMode _requestMode = SupplyMode.Bulk50;
-	private PatternMode _patternMode = PatternMode.Bulk50;
-	@Getter
-	@Setter
-	private boolean isLimited = true;
-
-	public int[] slotArray = new int[9];
-
 	/*** GUI ***/
 	public ItemIdentifierInventory getDummyInventory() {
 		return dummyInventory;
@@ -197,20 +165,16 @@ public class ModuleActiveSupplier extends LogisticsGuiModule implements IRequest
 
 		_requestedItems.values().stream().filter(amount -> amount > 0).forEach(amount -> _service.spawnParticle(Particles.VioletParticle, 2));
 
-		WorldCoordinatesWrapper worldCoordinates = new WorldCoordinatesWrapper(_world.getWorld(), getX(), getY(), getZ());
+		WorldCoordinatesWrapper worldCoordinates = new WorldCoordinatesWrapper(_world.getWorld(), getBlockPos());
 
-		worldCoordinates.getConnectedAdjacentTileEntities(ConnectionPipeType.ITEM)
-				.map(adjacent -> {
-					EnumFacing direction = adjacent.direction.getOpposite();
-					if (_service.getUpgradeManager(slot, positionInt).hasSneakyUpgrade()) {
-						direction = _service.getUpgradeManager(slot, positionInt).getSneakyOrientation();
-					}
-					return SimpleServiceLocator.inventoryUtilFactory.getInventoryUtil(adjacent.tileEntity, direction);
-				})
+		worldCoordinates.connectedTileEntities(ConnectionPipeType.ITEM)
+				.filter(adjacent -> !adjacent.isLogisticsPipe())
+				.map(neighbor -> neighbor.sneakyInsertion().from(getUpgradeManager()))
+				.map(NeighborTileEntity::getInventoryUtil)
 				.filter(Objects::nonNull)
 				.filter(invUtil -> invUtil.getSizeInventory() > 0)
 				.forEach(invUtil -> {
-					if (_service.getUpgradeManager(slot, positionInt).hasPatternUpgrade()) {
+					if (getUpgradeManager().hasPatternUpgrade()) {
 						createPatternRequest(invUtil);
 					} else {
 						createSupplyRequest(invUtil);
@@ -321,17 +285,16 @@ public class ModuleActiveSupplier extends LogisticsGuiModule implements IRequest
 			if (haveCount == null) {
 				haveCount = 0;
 			}
-			int spaceAvailable = invUtil.roomForItem(item.getKey());
+			int spaceAvailable = invUtil.roomForItem(item.getKey().unsafeMakeNormalStack(Integer.MAX_VALUE));
 			if (_requestMode == SupplyMode.Infinite) {
 				Integer requestedCount = _requestedItems.get(item.getKey());
 				if (requestedCount != null) {
 					spaceAvailable -= requestedCount;
 				}
-				item.setValue(Math.min(item.getKey().getMaxStackSize(), spaceAvailable));
+				item.setValue(Math.min(item.getKey().getMaxStackSize(), Math.max(0, spaceAvailable)));
 				continue;
-
 			}
-			if (spaceAvailable == 0 || (_requestMode == SupplyMode.Bulk50 && haveCount > item.getValue() / 2) || (_requestMode == SupplyMode.Bulk100 && haveCount >= item.getValue())) {
+			if (spaceAvailable < 1 || (_requestMode == SupplyMode.Bulk50 && haveCount > item.getValue() / 2) || (_requestMode == SupplyMode.Bulk100 && haveCount >= item.getValue())) {
 				item.setValue(0);
 				continue;
 			}
@@ -399,7 +362,7 @@ public class ModuleActiveSupplier extends LogisticsGuiModule implements IRequest
 	}
 
 	@Override
-	public void readFromNBT(NBTTagCompound nbttagcompound) {
+	public void readFromNBT(@Nonnull NBTTagCompound nbttagcompound) {
 		dummyInventory.readFromNBT(nbttagcompound, "");
 		if (nbttagcompound.hasKey("requestmode")) {
 			_requestMode = SupplyMode.values()[nbttagcompound.getShort("requestmode")];
@@ -424,7 +387,7 @@ public class ModuleActiveSupplier extends LogisticsGuiModule implements IRequest
 	}
 
 	@Override
-	public void writeToNBT(NBTTagCompound nbttagcompound) {
+	public void writeToNBT(@Nonnull NBTTagCompound nbttagcompound) {
 		dummyInventory.writeToNBT(nbttagcompound, "");
 		nbttagcompound.setShort("requestmode", (short) _requestMode.ordinal());
 		nbttagcompound.setShort("patternmode", (short) _patternMode.ordinal());
@@ -537,17 +500,25 @@ public class ModuleActiveSupplier extends LogisticsGuiModule implements IRequest
 		status.add(entry);
 	}
 
+	@Nonnull
 	@Override
-	protected ModuleCoordinatesGuiProvider getPipeGuiProvider() {
-		return NewGuiHandler.getGui(ActiveSupplierSlot.class).setPatternUpgarde(hasPatternUpgrade()).setSlotArray(slotArray).setMode((_service.getUpgradeManager(slot, positionInt).hasPatternUpgrade() ? getPatternMode() : getSupplyMode()).ordinal()).setLimit(isLimited);
+	public ModuleCoordinatesGuiProvider getPipeGuiProvider() {
+		final boolean hasPatternUpgrade = hasPatternUpgrade();
+		return NewGuiHandler.getGui(ActiveSupplierSlot.class)
+				.setPatternUpgarde(hasPatternUpgrade)
+				.setSlotArray(slotArray)
+				.setMode((hasPatternUpgrade ? getPatternMode() : getSupplyMode()).ordinal())
+				.setLimit(isLimited);
 	}
 
+	@Nonnull
 	@Override
-	protected ModuleInHandGuiProvider getInHandGuiProvider() {
+	public ModuleInHandGuiProvider getInHandGuiProvider() {
 		return NewGuiHandler.getGui(ActiveSupplierInHand.class);
 	}
 
 	@Override
+	@Nonnull
 	public IRouter getRouter() {
 		return _service.getRouter();
 	}
@@ -568,10 +539,26 @@ public class ModuleActiveSupplier extends LogisticsGuiModule implements IRequest
 	}
 
 	public boolean hasPatternUpgrade() {
-		if (_service != null && _service.getUpgradeManager(slot, positionInt) != null) {
-			return _service.getUpgradeManager(slot, positionInt).hasPatternUpgrade();
+		final ISlotUpgradeManager upgradeManager = getUpgradeManager();
+		if (upgradeManager != null) {
+			return upgradeManager.hasPatternUpgrade();
 		}
 		return false;
+	}
+
+	public enum SupplyMode {
+		Partial,
+		Full,
+		Bulk50,
+		Bulk100,
+		Infinite
+	}
+
+	public enum PatternMode {
+		Partial,
+		Full,
+		Bulk50,
+		Bulk100
 	}
 
 	public class PatternSupplierTargetInformation extends SupplierTargetInformation implements ITargetSlotInformation {

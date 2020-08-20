@@ -7,7 +7,6 @@ import net.minecraft.util.EnumFacing;
 
 import lombok.Getter;
 
-import logisticspipes.LogisticsPipes;
 import logisticspipes.interfaces.ISlotUpgradeManager;
 import logisticspipes.items.ItemUpgrade;
 import logisticspipes.pipes.PipeLogisticsChassi;
@@ -108,10 +107,12 @@ public class ModuleUpgradeManager implements ISimpleInventoryEventHandler, ISlot
 		boolean needUpdate = false;
 		for (int i = 0; i < inv.getSizeInventory(); i++) {
 			ItemStack item = inv.getStackInSlot(i);
-			if (item != null) {
+			if (item.isEmpty()) {
+				if (upgrades[i] != null) {
+					needUpdate |= removeUpgrade(i, upgrades);
+				}
+			} else {
 				needUpdate |= updateModule(i, upgrades, inv);
-			} else if (item == null && upgrades[i] != null) {
-				needUpdate |= removeUpgrade(i, upgrades);
 			}
 		}
 		//update sneaky direction, speed upgrade count and disconnection
@@ -123,6 +124,8 @@ public class ModuleUpgradeManager implements ISimpleInventoryEventHandler, ISlot
 		hasPatternUpgrade = false;
 		craftingCleanup = 0;
 		actionSpeedUpgrade = 0;
+		itemExtractionUpgrade = 0;
+		itemStackExtractionUpgrade = 0;
 		guiUpgrades = new boolean[2];
 		for (int i = 0; i < upgrades.length; i++) {
 			IPipeUpgrade upgrade = upgrades[i];
@@ -148,7 +151,7 @@ public class ModuleUpgradeManager implements ISimpleInventoryEventHandler, ISlot
 			} else if (upgrade instanceof ItemStackExtractionUpgrade) {
 				itemStackExtractionUpgrade += inv.getStackInSlot(i).getCount();
 			}
-			if(upgrade instanceof IConfigPipeUpgrade) {
+			if (upgrade instanceof IConfigPipeUpgrade) {
 				guiUpgrades[i] = true;
 			}
 		}
@@ -176,10 +179,10 @@ public class ModuleUpgradeManager implements ISimpleInventoryEventHandler, ISlot
 
 	private boolean updateModule(int slot, IPipeUpgrade[] upgrades, IInventory inv) {
 		ItemStack stackInSlot = inv.getStackInSlot(slot);
-		if(stackInSlot.getItem() instanceof ItemUpgrade) {
-			upgrades[slot] = ((ItemUpgrade) stackInSlot.getItem()).getUpgradeForItem(stackInSlot, upgrades[slot]);
-		} else {
+		if (stackInSlot.isEmpty() || !(stackInSlot.getItem() instanceof ItemUpgrade)) {
 			upgrades[slot] = null;
+		} else {
+			upgrades[slot] = ((ItemUpgrade) stackInSlot.getItem()).getUpgradeForItem(stackInSlot, upgrades[slot]);
 		}
 		if (upgrades[slot] == null) {
 			inv.setInventorySlotContents(slot, ItemStack.EMPTY);
@@ -212,5 +215,9 @@ public class ModuleUpgradeManager implements ISimpleInventoryEventHandler, ISlot
 	@Override
 	public int getItemStackExtractionUpgrade() {
 		return itemStackExtractionUpgrade;
+	}
+
+	public void dropUpgrades() {
+		inv.dropContents(pipe.getWorld(), pipe.getPos());
 	}
 }

@@ -1,9 +1,9 @@
 package logisticspipes.items;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.function.Supplier;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
@@ -24,38 +24,26 @@ import net.minecraftforge.registries.IForgeRegistry;
 
 import org.lwjgl.input.Keyboard;
 
+import logisticspipes.LPConstants;
 import logisticspipes.LPItems;
 import logisticspipes.LogisticsPipes;
 import logisticspipes.interfaces.IPipeServiceProvider;
 import logisticspipes.interfaces.IWorldProvider;
 import logisticspipes.logisticspipes.ItemModuleInformationManager;
+import logisticspipes.modules.LogisticsModule;
+import logisticspipes.modules.LogisticsModule.ModulePositionType;
 import logisticspipes.modules.ModuleActiveSupplier;
-import logisticspipes.modules.ModuleAdvancedExtractor;
-import logisticspipes.modules.ModuleAdvancedExtractorMK2;
-import logisticspipes.modules.ModuleAdvancedExtractorMK3;
-import logisticspipes.modules.ModuleCCBasedItemSink;
-import logisticspipes.modules.ModuleCCBasedQuickSort;
 import logisticspipes.modules.ModuleCrafter;
-import logisticspipes.modules.ModuleCrafterMK2;
-import logisticspipes.modules.ModuleCrafterMK3;
 import logisticspipes.modules.ModuleCreativeTabBasedItemSink;
 import logisticspipes.modules.ModuleEnchantmentSink;
 import logisticspipes.modules.ModuleEnchantmentSinkMK2;
-import logisticspipes.modules.ModuleExtractor;
-import logisticspipes.modules.ModuleExtractorMk2;
-import logisticspipes.modules.ModuleExtractorMk3;
 import logisticspipes.modules.ModuleItemSink;
 import logisticspipes.modules.ModuleModBasedItemSink;
 import logisticspipes.modules.ModuleOreDictItemSink;
 import logisticspipes.modules.ModulePassiveSupplier;
 import logisticspipes.modules.ModulePolymorphicItemSink;
 import logisticspipes.modules.ModuleProvider;
-import logisticspipes.modules.ModuleProviderMk2;
-import logisticspipes.modules.ModuleQuickSort;
 import logisticspipes.modules.ModuleTerminus;
-import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
-import logisticspipes.modules.abstractmodules.LogisticsModule;
-import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
 import logisticspipes.pipes.basic.CoreUnroutedPipe;
 import logisticspipes.pipes.basic.LogisticsBlockGenericPipe;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
@@ -63,6 +51,10 @@ import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.item.ItemIdentifierInventory;
 import logisticspipes.utils.item.ItemIdentifierStack;
 import logisticspipes.utils.string.StringUtils;
+import network.rs485.logisticspipes.module.AsyncAdvancedExtractor;
+import network.rs485.logisticspipes.module.AsyncExtractorModule;
+import network.rs485.logisticspipes.module.AsyncQuicksortModule;
+import network.rs485.logisticspipes.module.Gui;
 
 public class ItemModule extends LogisticsItem {
 
@@ -98,47 +90,41 @@ public class ItemModule extends LogisticsItem {
 	}
 
 	public static void loadModules(IForgeRegistry<Item> registry) {
-		registerModule(registry, "item_sink", ModuleItemSink::new);
-		registerModule(registry, "passive_supplier", ModulePassiveSupplier::new);
-		registerModule(registry, "extractor", ModuleExtractor::new);
-		registerModule(registry, "item_sink_polymorphic", ModulePolymorphicItemSink::new);
-		registerModule(registry, "quick_sort", ModuleQuickSort::new);
-		registerModule(registry, "terminus", ModuleTerminus::new);
-		registerModule(registry, "extractor_advanced", ModuleAdvancedExtractor::new);
-		registerModule(registry, "extractor_mk2", ModuleExtractorMk2::new);
-		registerModule(registry, "extractor_advanced_mk2", ModuleAdvancedExtractorMK2::new);
-		registerModule(registry, "extractor_mk3", ModuleExtractorMk3::new);
-		registerModule(registry, "extractor_advanced_mk3", ModuleAdvancedExtractorMK3::new);
-		registerModule(registry, "provider", ModuleProvider::new);
-		registerModule(registry, "provider_mk2", ModuleProviderMk2::new);
-		registerModule(registry, "item_sink_mod", ModuleModBasedItemSink::new);
-		registerModule(registry, "item_sink_oredict", ModuleOreDictItemSink::new);
-		registerModule(registry, "enchantment_sink", ModuleEnchantmentSink::new);
-		registerModule(registry, "enchantment_sink_mk2", ModuleEnchantmentSinkMK2::new);
-		registerModule(registry, "quick_sort_cc", ModuleCCBasedQuickSort::new);
-		registerModule(registry, "item_sink_cc", ModuleCCBasedItemSink::new);
-		registerModule(registry, "crafter", ModuleCrafter::new);
-		registerModule(registry, "crafter_mk2", ModuleCrafterMK2::new);
-		registerModule(registry, "crafter_mk3", ModuleCrafterMK3::new);
-		registerModule(registry, "active_supplier", ModuleActiveSupplier::new);
-		registerModule(registry, "item_sink_creativetab", ModuleCreativeTabBasedItemSink::new);
+		registerModule(registry, ModuleItemSink.getName(), ModuleItemSink::new);
+		registerModule(registry, ModulePassiveSupplier.getName(), ModulePassiveSupplier::new);
+		registerModule(registry, AsyncExtractorModule.getName(), AsyncExtractorModule::new);
+		registerModule(registry, ModulePolymorphicItemSink.getName(), ModulePolymorphicItemSink::new);
+		registerModule(registry, AsyncQuicksortModule.getName(), AsyncQuicksortModule::new);
+		registerModule(registry, ModuleTerminus.getName(), ModuleTerminus::new);
+		registerModule(registry, AsyncAdvancedExtractor.getName(), AsyncAdvancedExtractor::new);
+		registerModule(registry, ModuleProvider.getName(), ModuleProvider::new);
+		registerModule(registry, ModuleModBasedItemSink.getName(), ModuleModBasedItemSink::new);
+		registerModule(registry, ModuleOreDictItemSink.getName(), ModuleOreDictItemSink::new);
+		registerModule(registry, ModuleEnchantmentSink.getName(), ModuleEnchantmentSink::new);
+		registerModule(registry, ModuleEnchantmentSinkMK2.getName(), ModuleEnchantmentSinkMK2::new);
+		//registerModule(registry, "quick_sort_cc", ModuleCCBasedQuickSort::new);
+		//registerModule(registry, "item_sink_cc", ModuleCCBasedItemSink::new);
+		registerModule(registry, ModuleCrafter.getName(), ModuleCrafter::new);
+		registerModule(registry, ModuleActiveSupplier.getName(), ModuleActiveSupplier::new);
+		registerModule(registry, ModuleCreativeTabBasedItemSink.getName(), ModuleCreativeTabBasedItemSink::new);
 	}
 
 	public static void registerModule(IForgeRegistry<Item> registry, String name, @Nonnull Supplier<? extends LogisticsModule> moduleConstructor) {
-		Module module = new Module(moduleConstructor);
-		ItemModule mod = LogisticsPipes.setName(new ItemModule(module), String.format("module_%s", name));
-		LPItems.modules.put(module.getILogisticsModuleClass(), mod); // TODO account for registry overrides → move to init or something
-		registry.register(mod);
+		registerModule(registry, name, moduleConstructor, LPConstants.LP_MOD_ID);
 	}
 
-	private void openConfigGui(ItemStack stack, EntityPlayer player, World world) {
+	public static void registerModule(IForgeRegistry<Item> registry, String name, @Nonnull Supplier<? extends LogisticsModule> moduleConstructor, String modID) {
+		ItemModule module = LogisticsPipes.setName(new ItemModule(new Module(moduleConstructor)), String.format("module_%s", name), modID);
+		LPItems.modules.put(name, module.getRegistryName());
+		registry.register(module);
+	}
+
+	private void openConfigGui(@Nonnull ItemStack stack, EntityPlayer player, World world) {
 		LogisticsModule module = getModuleForItem(stack, null, null, null);
-		if (module != null && module.hasGui()) {
-			if (stack != null && stack.getCount() > 0) {
-				ItemModuleInformationManager.readInformation(stack, module);
-				module.registerPosition(ModulePositionType.IN_HAND, player.inventory.currentItem);
-				((LogisticsGuiModule) module).getInHandGuiProviderForModule().open(player);
-			}
+		if (module instanceof Gui && !stack.isEmpty()) {
+			ItemModuleInformationManager.readInformation(stack, module);
+			module.registerPosition(ModulePositionType.IN_HAND, player.inventory.currentItem);
+			Gui.getInHandGuiProvider((Gui) module).open(player);
 		}
 	}
 
@@ -182,8 +168,8 @@ public class ItemModule extends LogisticsItem {
 	}
 
 	@Nullable
-	public LogisticsModule getModuleForItem(ItemStack itemStack, LogisticsModule currentModule, IWorldProvider world, IPipeServiceProvider service) {
-		if (itemStack == null) {
+	public LogisticsModule getModuleForItem(@Nonnull ItemStack itemStack, LogisticsModule currentModule, IWorldProvider world, IPipeServiceProvider service) {
+		if (itemStack.isEmpty()) {
 			return null;
 		}
 		if (itemStack.getItem() != this) {
@@ -208,7 +194,7 @@ public class ItemModule extends LogisticsItem {
 	}
 
 	@Override
-	public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
+	public void addInformation(@Nonnull ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
 		if (stack.hasTagCompound()) {
 			NBTTagCompound nbt = stack.getTagCompound();
 			assert nbt != null;
@@ -217,10 +203,10 @@ public class ItemModule extends LogisticsItem {
 				if (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT)) {
 					NBTTagList nbttaglist = nbt.getTagList("informationList", 8);
 					for (int i = 0; i < nbttaglist.tagCount(); i++) {
-						Object nbttag = nbttaglist.tagList.get(i);
+						Object nbttag = nbttaglist.get(i);
 						String data = ((NBTTagString) nbttag).getString();
 						if (data.equals("<inventory>") && i + 1 < nbttaglist.tagCount()) {
-							nbttag = nbttaglist.tagList.get(i + 1);
+							nbttag = nbttaglist.get(i + 1);
 							data = ((NBTTagString) nbttag).getString();
 							if (data.startsWith("<that>")) {
 								String prefix = data.substring(6);

@@ -7,6 +7,11 @@ import java.util.Map.Entry;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+
+import net.minecraftforge.fluids.FluidStack;
+
 import logisticspipes.LPItems;
 import logisticspipes.interfaces.routing.IFluidSink;
 import logisticspipes.interfaces.routing.IProvideFluids;
@@ -19,11 +24,6 @@ import logisticspipes.utils.FluidIdentifier;
 import logisticspipes.utils.FluidIdentifierStack;
 import logisticspipes.utils.item.ItemIdentifierStack;
 import logisticspipes.utils.tuples.Pair;
-
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-
-import net.minecraftforge.fluids.FluidStack;
 
 public class LogisticsFluidManager implements ILogisticsFluidManager {
 
@@ -51,12 +51,10 @@ public class LogisticsFluidManager implements ILogisticsFluidManager {
 
 			int amount = ((IFluidSink) pipe).sinkAmount(stack);
 			if (amount > 0) {
-				Pair<Integer, Integer> result = new Pair<>(candidateRouter.destination.getSimpleID(), amount);
-				return result;
+				return new Pair<>(candidateRouter.destination.getSimpleID(), amount);
 			}
 		}
-		Pair<Integer, Integer> result = new Pair<>(0, 0);
-		return result;
+		return new Pair<>(0, 0);
 	}
 
 	@Override
@@ -107,9 +105,8 @@ public class LogisticsFluidManager implements ILogisticsFluidManager {
 				}
 			}
 		}
-		TreeSet<FluidIdentifierStack> itemIdentifierStackList = allAvailableItems.entrySet().stream()
+		return allAvailableItems.entrySet().stream()
 				.map(item -> new FluidIdentifierStack(item.getKey(), item.getValue()))
 				.collect(Collectors.toCollection(TreeSet::new));
-		return itemIdentifierStackList;
 	}
 }

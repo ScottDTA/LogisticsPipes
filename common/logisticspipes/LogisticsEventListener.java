@@ -1,7 +1,6 @@
 package logisticspipes;
 
 import java.lang.ref.WeakReference;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -18,8 +17,6 @@ import net.minecraft.client.gui.inventory.GuiChest;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntityChest;
 import net.minecraft.util.math.BlockPos;
@@ -38,6 +35,7 @@ import net.minecraftforge.event.world.ChunkWatchEvent.Watch;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.client.FMLClientHandler;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent;
 import net.minecraftforge.fml.common.network.FMLNetworkEvent.ClientConnectedToServerEvent;
@@ -49,9 +47,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import logisticspipes.config.Configs;
-import logisticspipes.config.PlayerConfig;
 import logisticspipes.interfaces.IItemAdvancedExistance;
-import logisticspipes.modules.ModuleQuickSort;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.packets.PlayerConfigToClientPacket;
 import logisticspipes.network.packets.chassis.ChestGuiClosed;
@@ -73,13 +69,16 @@ import logisticspipes.utils.PlayerIdentifier;
 import logisticspipes.utils.QuickSortChestMarkerStorage;
 import logisticspipes.utils.string.ChatColor;
 import logisticspipes.utils.string.StringUtils;
+import network.rs485.logisticspipes.config.ClientConfiguration;
+import network.rs485.logisticspipes.config.PlayerConfiguration;
+import network.rs485.logisticspipes.connection.NeighborTileEntity;
+import network.rs485.logisticspipes.module.AsyncQuicksortModule;
 import network.rs485.logisticspipes.world.WorldCoordinatesWrapper;
 
 public class LogisticsEventListener {
 
-	public static final WeakHashMap<EntityPlayer, List<WeakReference<ModuleQuickSort>>> chestQuickSortConnection = new WeakHashMap<>();
+	public static final WeakHashMap<EntityPlayer, List<WeakReference<AsyncQuicksortModule>>> chestQuickSortConnection = new WeakHashMap<>();
 	public static Map<ChunkPos, PlayerCollectionList> watcherList = new ConcurrentHashMap<>();
-	public static Map<PlayerIdentifier, PlayerConfig> playerConfigs = new HashMap<>();
 
 	@SubscribeEvent
 	public void onEntitySpawn(EntityJoinWorldEvent event) {
@@ -88,10 +87,10 @@ public class LogisticsEventListener {
 			if (!stack.isEmpty() && stack.getItem() instanceof IItemAdvancedExistance && !((IItemAdvancedExistance) stack.getItem()).canExistInWorld(stack)) {
 				event.setCanceled(true);
 			}
-			if(stack.hasTagCompound()) {
-				for(Map.Entry<String, NBTBase> tagEntry : stack.getTagCompound().tagMap.entrySet()) {
-					if(tagEntry.getKey().startsWith("logisticspipes:routingdata")) {
-						ItemRoutingInformation info = ItemRoutingInformation.restoreFromNBT((NBTTagCompound) tagEntry.getValue());
+			if (stack.hasTagCompound()) {
+				for (String key : stack.getTagCompound().getKeySet()) {
+					if (key.startsWith("logisticspipes:routingdata")) {
+						ItemRoutingInformation info = ItemRoutingInformation.restoreFromNBT(stack.getTagCompound().getCompoundTag(key));
 						info.setItemTimedout();
 						((EntityItem) event.getEntity()).setItem(info.getItem().getItem().makeNormalStack(stack.getCount()));
 						break;
@@ -125,23 +124,22 @@ public class LogisticsEventListener {
 		}
 	}
 
+	@SubscribeEvent
 	public void onPlayerLeftClickBlock(final PlayerInteractEvent.RightClickBlock event) {
 		if (MainProxy.isServer(event.getEntityPlayer().world)) {
 			WorldCoordinatesWrapper worldCoordinates = new WorldCoordinatesWrapper(event.getEntityPlayer().world, event.getPos());
 			TileEntity tileEntity = worldCoordinates.getTileEntity();
 			if (tileEntity instanceof TileEntityChest || SimpleServiceLocator.ironChestProxy.isIronChest(tileEntity)) {
-				//@formatter:off
-				List<WeakReference<ModuleQuickSort>> list = worldCoordinates.getAdjacentTileEntities()
-						.filter(adjacent -> adjacent.tileEntity instanceof LogisticsTileGenericPipe)
-						.filter(adjacent -> ((LogisticsTileGenericPipe) adjacent.tileEntity).pipe instanceof PipeLogisticsChassi)
-						.filter(adjacent -> ((PipeLogisticsChassi) ((LogisticsTileGenericPipe) adjacent.tileEntity).pipe).getPointedOrientation()
-								== adjacent.direction.getOpposite())
-						.map(adjacent -> (PipeLogisticsChassi) ((LogisticsTileGenericPipe) adjacent.tileEntity).pipe)
+				List<WeakReference<AsyncQuicksortModule>> list = worldCoordinates.allNeighborTileEntities()
+						.filter(NeighborTileEntity::isLogisticsPipe)
+						.filter(adjacent -> ((LogisticsTileGenericPipe) adjacent.getTileEntity()).pipe instanceof PipeLogisticsChassi)
+						.filter(adjacent -> ((PipeLogisticsChassi) ((LogisticsTileGenericPipe) adjacent.getTileEntity()).pipe).getPointedOrientation()
+								== adjacent.getOurDirection())
+						.map(adjacent -> (PipeLogisticsChassi) ((LogisticsTileGenericPipe) adjacent.getTileEntity()).pipe)
 						.flatMap(pipeLogisticsChassi -> Arrays.stream(pipeLogisticsChassi.getModules().getModules()))
-						.filter(logisticsModule -> logisticsModule instanceof ModuleQuickSort)
-						.map(logisticsModule -> new WeakReference<>((ModuleQuickSort) logisticsModule))
+						.filter(logisticsModule -> logisticsModule instanceof AsyncQuicksortModule)
+						.map(logisticsModule -> new WeakReference<>((AsyncQuicksortModule) logisticsModule))
 						.collect(Collectors.toList());
-				//@formatter:on
 
 				if (!list.isEmpty()) {
 					LogisticsEventListener.chestQuickSortConnection.put(event.getEntityPlayer(), list);
@@ -176,16 +174,18 @@ public class LogisticsEventListener {
 
 	@SubscribeEvent
 	public void watchChunk(Watch event) {
-		if (!LogisticsEventListener.watcherList.containsKey(event.getChunk())) {
-			LogisticsEventListener.watcherList.put(event.getChunk(), new PlayerCollectionList());
+		ChunkPos pos = event.getChunkInstance().getPos();
+		if (!LogisticsEventListener.watcherList.containsKey(pos)) {
+			LogisticsEventListener.watcherList.put(pos, new PlayerCollectionList());
 		}
-		LogisticsEventListener.watcherList.get(event.getChunk()).add(event.getPlayer());
+		LogisticsEventListener.watcherList.get(pos).add(event.getPlayer());
 	}
 
 	@SubscribeEvent
 	public void unWatchChunk(UnWatch event) {
-		if (LogisticsEventListener.watcherList.containsKey(event.getChunk())) {
-			LogisticsEventListener.watcherList.get(event.getChunk()).remove(event.getPlayer());
+		ChunkPos pos = event.getChunkInstance().getPos();
+		if (LogisticsEventListener.watcherList.containsKey(pos)) {
+			LogisticsEventListener.watcherList.get(pos).remove(event.getPlayer());
 		}
 	}
 
@@ -196,19 +196,13 @@ public class LogisticsEventListener {
 		}
 
 		SimpleServiceLocator.serverBufferHandler.clear(event.player);
-		PlayerConfig config = LogisticsEventListener.getPlayerConfig(PlayerIdentifier.get(event.player));
+		ClientConfiguration config = LogisticsPipes.getServerConfigManager().getPlayerConfiguration(PlayerIdentifier.get(event.player));
 		MainProxy.sendPacketToPlayer(PacketHandler.getPacket(PlayerConfigToClientPacket.class).setConfig(config), event.player);
 	}
 
 	@SubscribeEvent
 	public void onPlayerLogout(PlayerLoggedOutEvent event) {
 		SimpleServiceLocator.serverBufferHandler.clear(event.player);
-		PlayerIdentifier ident = PlayerIdentifier.get(event.player);
-		PlayerConfig config = LogisticsEventListener.getPlayerConfig(ident);
-		if (config != null) {
-			config.writeToFile();
-		}
-		LogisticsEventListener.playerConfigs.remove(ident);
 	}
 
 	@AllArgsConstructor
@@ -301,21 +295,6 @@ public class LogisticsEventListener {
 		}
 	}
 
-	public static void serverShutdown() {
-		LogisticsEventListener.playerConfigs.values().forEach(PlayerConfig::writeToFile);
-		LogisticsEventListener.playerConfigs.clear();
-	}
-
-	public static PlayerConfig getPlayerConfig(PlayerIdentifier ident) {
-		PlayerConfig config = LogisticsEventListener.playerConfigs.get(ident);
-		if (config == null) {
-			config = new PlayerConfig(ident);
-			config.readFromFile();
-			LogisticsEventListener.playerConfigs.put(ident, config);
-		}
-		return config;
-	}
-
 	@SubscribeEvent
 	public void onBlockUpdate(BlockEvent.NeighborNotifyEvent event) {
 		TEControl.handleBlockUpdate(event.getWorld(), LPTickHandler.getWorldInfo(event.getWorld()), event.getPos());
@@ -324,15 +303,32 @@ public class LogisticsEventListener {
 	@SubscribeEvent
 	@SideOnly(Side.CLIENT)
 	public void onItemStackToolTip(ItemTooltipEvent event) {
-		if(event.getItemStack().hasTagCompound()) {
-			for(Map.Entry<String, NBTBase> tagEntry : event.getItemStack().getTagCompound().tagMap.entrySet()) {
-				if(tagEntry.getKey().startsWith("logisticspipes:routingdata")) {
-					ItemRoutingInformation info = ItemRoutingInformation.restoreFromNBT((NBTTagCompound) tagEntry.getValue());
+		if (event.getItemStack().hasTagCompound()) {
+			for (String key : event.getItemStack().getTagCompound().getKeySet()) {
+				if (key.startsWith("logisticspipes:routingdata")) {
+					ItemRoutingInformation info = ItemRoutingInformation.restoreFromNBT(event.getItemStack().getTagCompound().getCompoundTag(key));
 					List<String> list = event.getToolTip();
 					list.set(0, ChatColor.RED + "!!! " + ChatColor.WHITE + list.get(0) + ChatColor.RED + " !!!" + ChatColor.WHITE);
 					list.add(1, StringUtils.translate("itemstackinfo.lprouteditem"));
 					list.add(2, StringUtils.translate("itemstackinfo.lproutediteminfo"));
 					list.add(3, StringUtils.translate("itemstackinfo.lprouteditemtype") + ": " + info.getItem().toString());
+				}
+			}
+		}
+	}
+
+	@SubscribeEvent
+	public void onItemCrafting(PlayerEvent.ItemCraftedEvent event) {
+		if (event.player.isServerWorld() && !event.crafting.isEmpty()) {
+			if (event.crafting.getItem().getRegistryName().getResourceDomain().equals(LPConstants.LP_MOD_ID)) {
+				PlayerIdentifier identifier = PlayerIdentifier.get(event.player);
+				PlayerConfiguration config = LogisticsPipes.getServerConfigManager().getPlayerConfiguration(identifier);
+				if (!config.getHasCraftedLPItem() && !LogisticsPipes.isDEBUG()) {
+					ItemStack book = new ItemStack(LPItems.itemGuideBook, 1);
+					event.player.addItemStackToInventory(book);
+
+					config.setHasCraftedLPItem(true);
+					LogisticsPipes.getServerConfigManager().setPlayerConfiguration(identifier, config);
 				}
 			}
 		}

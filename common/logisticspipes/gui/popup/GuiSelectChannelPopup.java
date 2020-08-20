@@ -7,21 +7,13 @@ import java.util.function.Consumer;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.util.math.BlockPos;
 
-import logisticspipes.interfaces.IGUIChannelInformationReceiver;
-import logisticspipes.network.PacketHandler;
-import logisticspipes.network.packets.gui.OpenAddChannelGUIPacket;
-import logisticspipes.network.packets.gui.OpenEditChannelGUIPacket;
-import logisticspipes.proxy.MainProxy;
 import logisticspipes.routing.channels.ChannelInformation;
-import logisticspipes.utils.gui.GuiGraphics;
 import logisticspipes.utils.gui.SmallGuiButton;
-import logisticspipes.utils.gui.SubGuiScreen;
-import logisticspipes.utils.gui.TextListDisplay;
 import logisticspipes.utils.string.StringUtils;
 
 public class GuiSelectChannelPopup extends GuiManageChannelPopup {
 
-	private static String GUI_LANG_KEY = "gui.popup.selectchannel.";
+	private static final String GUI_LANG_KEY = "gui.popup.selectchannel.";
 
 	private final Consumer<ChannelInformation> handleResult;
 
@@ -30,7 +22,6 @@ public class GuiSelectChannelPopup extends GuiManageChannelPopup {
 		this.handleResult = handleResult;
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public void initGui() {
 		super.initGui();
@@ -47,8 +38,11 @@ public class GuiSelectChannelPopup extends GuiManageChannelPopup {
 	protected void actionPerformed(GuiButton guibutton) throws IOException {
 		if (guibutton.id == 0) { // Select
 			int selected = textList.getSelected();
-			if(selected >= 0) {
-				handleResult.accept(channelList.get(selected));
+			if (selected >= 0) {
+				ChannelInformation info = channelList.get(selected);
+				if (info != null) {
+					handleResult.accept(info);
+				}
 				exitGui();
 			}
 		} else {

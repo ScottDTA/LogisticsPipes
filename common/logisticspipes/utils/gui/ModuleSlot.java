@@ -1,14 +1,16 @@
 package logisticspipes.utils.gui;
 
-import logisticspipes.LogisticsPipes;
-import logisticspipes.items.ItemModule;
-import logisticspipes.logisticspipes.ItemModuleInformationManager;
-import logisticspipes.pipes.PipeLogisticsChassi;
+import javax.annotation.Nonnull;
 
-import lombok.Getter;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
+
+import lombok.Getter;
+
+import logisticspipes.items.ItemModule;
+import logisticspipes.logisticspipes.ItemModuleInformationManager;
+import logisticspipes.pipes.PipeLogisticsChassi;
 
 public class ModuleSlot extends RestrictedSlot {
 
@@ -23,9 +25,10 @@ public class ModuleSlot extends RestrictedSlot {
 		_moduleIndex = i;
 	}
 
+	@Nonnull
 	@Override
-	public ItemStack onTake(EntityPlayer pl, ItemStack itemStack) {
-		ItemModuleInformationManager.saveInfotmation(itemStack, _pipe.getLogisticsModule().getSubModule(_moduleIndex));
+	public ItemStack onTake(EntityPlayer pl, @Nonnull ItemStack itemStack) {
+		ItemModuleInformationManager.saveInformation(itemStack, _pipe.getSubModule(_moduleIndex));
 		return super.onTake(pl, itemStack);
 	}
 }

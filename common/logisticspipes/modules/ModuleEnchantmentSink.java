@@ -1,49 +1,26 @@
 package logisticspipes.modules;
 
-import java.util.Collection;
+import javax.annotation.Nonnull;
 
-import logisticspipes.modules.abstractmodules.LogisticsModule;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
 
-import net.minecraft.nbt.NBTTagCompound;
-
 public class ModuleEnchantmentSink extends LogisticsModule {
 
-	@Override
-	public void readFromNBT(NBTTagCompound nbttagcompound) {}
-
-	@Override
-	public void writeToNBT(NBTTagCompound nbttagcompound) {}
-
-	@Override
-	public int getX() {
-		if (slot.isInWorld()) {
-			return _service.getX();
-		} else {
-			return 0;
-		}
+	public static String getName() {
+		return "enchantment_sink";
 	}
 
 	@Override
-	public int getY() {
-		if (slot.isInWorld()) {
-			return _service.getY();
-		} else {
-			return 0;
-		}
-	}
+	public void readFromNBT(@Nonnull NBTTagCompound nbttagcompound) {}
 
 	@Override
-	public int getZ() {
-		if (slot.isInWorld()) {
-			return _service.getZ();
-		} else {
-			return 0;
-		}
-	}
+	public void writeToNBT(@Nonnull NBTTagCompound nbttagcompound) {}
 
 	private SinkReply _sinkReply;
 
@@ -54,7 +31,7 @@ public class ModuleEnchantmentSink extends LogisticsModule {
 	}
 
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
+	public SinkReply sinksItem(@Nonnull ItemStack stack, ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit, boolean forcePassive) {
 		// check to see if a better route is already found
 		// Note: Higher MKs are higher priority
 		if (bestPriority > _sinkReply.fixedPriority.ordinal() || (bestPriority == _sinkReply.fixedPriority.ordinal() && bestCustomPriority >= _sinkReply.customPriority)) {
@@ -62,14 +39,9 @@ public class ModuleEnchantmentSink extends LogisticsModule {
 		}
 
 		//check to see if item is enchanted
-		if (item.makeNormalStack(1).isItemEnchanted()) {
+		if (stack.isItemEnchanted()) {
 			return _sinkReply;
 		}
-		return null;
-	}
-
-	@Override
-	public LogisticsModule getSubModule(int slot) {
 		return null;
 	}
 
@@ -83,15 +55,6 @@ public class ModuleEnchantmentSink extends LogisticsModule {
 	 */
 	public boolean hasGenericInterests() {
 		return true;
-	}
-
-	@Override
-	/*
-	 * Null return as checking all items
-	 * @see logisticspipes.modules.LogisticsModule#getSpecificInterests()
-	 */
-	public Collection<ItemIdentifier> getSpecificInterests() {
-		return null;
 	}
 
 	@Override

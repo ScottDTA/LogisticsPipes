@@ -5,26 +5,29 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 
-import logisticspipes.LPItems;
 import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.ChatAllowedCharacters;
 
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
+import logisticspipes.LPItems;
 import logisticspipes.config.Configs;
 import logisticspipes.gui.popup.GuiDiskPopup;
 import logisticspipes.gui.popup.GuiRequestPopup;
@@ -52,9 +55,9 @@ import logisticspipes.utils.gui.GuiCheckBox;
 import logisticspipes.utils.gui.GuiGraphics;
 import logisticspipes.utils.gui.IItemSearch;
 import logisticspipes.utils.gui.ISubGuiControler;
+import logisticspipes.utils.gui.InputBar;
 import logisticspipes.utils.gui.ItemDisplay;
 import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
-import logisticspipes.utils.gui.InputBar;
 import logisticspipes.utils.gui.SmallGuiButton;
 import logisticspipes.utils.gui.extention.GuiExtention;
 import logisticspipes.utils.item.ItemIdentifier;
@@ -82,6 +85,7 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 	private IChainAddList<GuiButton> moveWhileSmall = new ChainAddArrayList<>();
 	private IChainAddList<GuiButton> hideWhileSmall = new ChainAddArrayList<>();
 	private GuiButton hideShowButton;
+
 	public GuiRequestTable(EntityPlayer entityPlayer, PipeBlockRequestTable table) {
 		super(410, 240, 0, 0);
 		_table = table;
@@ -115,8 +119,9 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void initGui() {
+		Keyboard.enableRepeatEvents(true);
+
 		boolean reHide = false;
 		if (!showRequest) {
 			guiLeft = startLeft;
@@ -173,16 +178,22 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 			showRequest = false;
 			xSize = startXSize - 210;
 			guiLeft = startLeft + 105;
-			for (GuiButton button:moveWhileSmall) {
+			for (GuiButton button : moveWhileSmall) {
 				button.x += 105;
 			}
 			hideShowButton.x += 90;
 			hideShowButton.displayString = "Show";
-			for (GuiButton button:hideWhileSmall) {
+			for (GuiButton button : hideWhileSmall) {
 				button.visible = false;
 			}
 			Macrobutton.visible = false;
 		}
+	}
+
+	@Override
+	public void closeGui() throws IOException {
+		super.closeGui();
+		Keyboard.enableRepeatEvents(false);
 	}
 
 	@Override
@@ -207,7 +218,7 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 
 			itemDisplay.renderAmount(getStackAmount());
 			//SearchInput
-			search.renderSearchBar();
+			search.drawTextBox();
 
 			itemDisplay.renderSortMode(right - 103, bottom - 52);
 			itemDisplay.renderItemArea(zLevel);
@@ -245,7 +256,6 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 					private int width = 4;
 					private GuiButton localControlledButton;
 
-					@SuppressWarnings("unchecked")
 					@Override
 					public void renderForground(int left, int top) {
 						if (!_table.watchedRequests.containsKey(entry.getKey())) {
@@ -263,10 +273,10 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 						GL11.glEnable(GL11.GL_LIGHTING);
 						GL11.glEnable(GL11.GL_DEPTH_TEST);
 						RenderHelper.enableGUIStandardItemLighting();
-						ItemStack stack = null;
+						ItemStack stack;
 						IResource resource = entry.getValue().getValue1();
-						String s = null;
-						if(resource != null) {
+						String s;
+						if (resource != null) {
 							stack = resource.getDisplayItem().makeNormalStack();
 							itemRender.renderItemAndEffectIntoGUI(stack, left + 5, top + 5);
 							itemRender.renderItemOverlayIntoGUI(mc.fontRenderer, stack, left + 5, top + 5, "");
@@ -291,7 +301,7 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 							}
 							List<IOrderInfoProvider> list = entry.getValue().getValue2().getList();
 							calculateSize(left, top, list);
-							String ident = "ID: " + Integer.toString(entry.getKey());
+							String ident = String.format("ID: %d", entry.getKey());
 							mc.fontRenderer.drawStringWithShadow(ident, left + 25, top + 7, 16777215);
 							int x = left + 6;
 							int y = top + 25;
@@ -383,10 +393,10 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 								list.add(ChatColor.BLUE + "Request Type: " + ChatColor.YELLOW + order.getType().name());
 								list.add(ChatColor.BLUE + "Send to Router ID: " + ChatColor.YELLOW + order
 										.getRouterId());
-								GuiGraphics.displayItemToolTip(new Object[]{xPos - 10, yPos, order
-										.getAsDisplayItem().makeNormalStack(), true, list}, zLevel, guiLeft, guiTop, false);
+								GuiGraphics.displayItemToolTip(new Object[] { xPos - 10, yPos, order
+										.getAsDisplayItem().makeNormalStack(), true, list }, zLevel, guiLeft, guiTop, false);
 							});
-						} else {
+						} else if (entry.getValue() != null && entry.getValue().getValue1() != null && entry.getValue().getValue1().getDisplayItem() != null) {
 							List<String> list = new ArrayList<>();
 							list.add(ChatColor.BLUE + "Request ID: " + ChatColor.YELLOW + entry.getKey());
 							GuiGraphics.displayItemToolTip(new Object[] { xPos - 10, yPos, entry.getValue().getValue1().getDisplayItem().makeNormalStack(), true, list }, zLevel, guiLeft, guiTop, false);
@@ -420,7 +430,8 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 	@Override
 	protected void actionPerformed(GuiButton guibutton) {
 		if (guibutton.id == 0 && itemDisplay.getSelectedItem() != null) {
-			MainProxy.sendPacketToServer(PacketHandler.getPacket(RequestSubmitPacket.class).setDimension(dimension).setStack(itemDisplay.getSelectedItem().getItem().makeStack(itemDisplay.getRequestCount())).setTilePos(_table.container));
+			final ItemIdentifierStack stack = itemDisplay.getSelectedItem().getItem().makeStack(itemDisplay.getRequestCount());
+			MainProxy.sendPacketToServer(PacketHandler.getPacket(RequestSubmitPacket.class).setStack(stack).setTilePos(_table.container).setDimension(dimension));
 			refreshItems();
 		} else if (guibutton.id == 1) {
 			itemDisplay.nextPage();
@@ -445,7 +456,8 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 			Configs.DISPLAY_POPUP = button.change();
 			Configs.savePopupState();
 		} else if (guibutton.id == 13 && itemDisplay.getSelectedItem() != null) {
-			MainProxy.sendPacketToServer(PacketHandler.getPacket(RequestComponentPacket.class).setDimension(dimension).setStack(itemDisplay.getSelectedItem().getItem().makeStack(itemDisplay.getRequestCount())).setTilePos(_table.container));
+			final ItemIdentifierStack stack = itemDisplay.getSelectedItem().getItem().makeStack(itemDisplay.getRequestCount());
+			MainProxy.sendPacketToServer(PacketHandler.getPacket(RequestComponentPacket.class).setStack(stack).setTilePos(_table.container).setDimension(dimension));
 		} else if (guibutton.id == 9) {
 			String displayString = "";
 			switch (displayOptions) {
@@ -477,20 +489,20 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 			if (showRequest) {
 				xSize = startXSize;
 				guiLeft = startLeft;
-				for (GuiButton button:moveWhileSmall) {
+				for (GuiButton button : moveWhileSmall) {
 					button.x -= 105;
 				}
 				hideShowButton.x -= 90;
 			} else {
 				xSize = startXSize - 210;
 				guiLeft = startLeft + 105;
-				for (GuiButton button:moveWhileSmall) {
+				for (GuiButton button : moveWhileSmall) {
 					button.x += 105;
 				}
 				hideShowButton.x += 90;
 			}
 			hideShowButton.displayString = showRequest ? "Hide" : "Show";
-			for (GuiButton button:hideWhileSmall) {
+			for (GuiButton button : hideWhileSmall) {
 				button.visible = showRequest;
 			}
 			Macrobutton.visible = showRequest;
@@ -505,31 +517,26 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 			itemDisplay.cycle();
 		} else if (guibutton.id == 21 || guibutton.id == 22) {
 			MainProxy.sendPacketToServer(PacketHandler.getPacket(CraftingCycleRecipe.class).setDown(guibutton.id == 22).setTilePos(_table.container));
-		} else if(guibutton.id == 30) {
+		} else if (guibutton.id == 30) {
 			MainProxy.sendPacketToServer(PacketHandler.getPacket(ClearCraftingGridPacket.class).setTilePos(_table.container));
 			_table.cacheRecipe();
-		} else if(guibutton.id == 31) {
+		} else if (guibutton.id == 31) {
 			ArrayList<ItemIdentifierStack> list = new ArrayList<>(9);
 			list.addAll(_table.matrix.getItemsAndCount().entrySet().stream()
 					.map(e -> e.getKey().makeStack(e.getValue())).collect(Collectors.toList()));
-			for(Pair<ItemStack, Integer> entry:_table.inv) {
-				if(entry.getValue1() == null) continue;
+			for (Pair<ItemStack, Integer> entry : _table.inv) {
+				if (entry.getValue1().isEmpty()) continue;
 				int size = entry.getValue1().getCount();
 				ItemIdentifier ident = ItemIdentifier.get(entry.getValue1());
-				for(ItemIdentifierStack stack:list) {
-					if(!stack.getItem().equals(ident)) continue;
+				for (ItemIdentifierStack stack : list) {
+					if (!stack.getItem().equals(ident)) continue;
 					int toUse = Math.min(size, stack.getStackSize());
 					stack.lowerStackSize(toUse);
 					size -= toUse;
 				}
 			}
-			Iterator<ItemIdentifierStack> iter = list.iterator();
-			while(iter.hasNext()) {
-				if(iter.next().getStackSize() <= 0) {
-					iter.remove();
-				}
-			}
-			if(!list.isEmpty()) {
+			list.removeIf(itemIdentifierStack -> itemIdentifierStack.getStackSize() <= 0);
+			if (!list.isEmpty()) {
 				MainProxy.sendPacketToServer(PacketHandler.getPacket(RequestSubmitListPacket.class).setIdentList(list).setTilePos(_table.container));
 				refreshItems();
 			}
@@ -549,7 +556,7 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 	}
 
 	public void handlePacket(Collection<ItemIdentifierStack> allItems) {
-		itemDisplay.setItemList(allItems);
+		itemDisplay.setItemList(allItems.stream().filter(Objects::nonNull).collect(Collectors.toList()));
 	}
 
 	@Override
@@ -564,26 +571,27 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 			return;
 		}
 		GuiGraphics.displayItemToolTip(itemDisplay.getToolTip(), this, zLevel, guiLeft, guiTop);
-		Macrobutton.enabled = _table.diskInv.getStackInSlot(0) != null && _table.diskInv.getStackInSlot(0).getItem().equals(LPItems.disk);
+		Macrobutton.enabled = !_table.diskInv.getStackInSlot(0).isEmpty() && _table.diskInv.getStackInSlot(0).getItem().equals(LPItems.disk);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public boolean itemSearched(ItemIdentifier item) {
 		if (search.isEmpty()) {
 			return true;
 		}
-		if (isSearched(item.getFriendlyName().toLowerCase(Locale.US), search.getContent().toLowerCase(Locale.US))) {
+		if (isSearched(item.getFriendlyName().toLowerCase(Locale.US), search.getText().toLowerCase(Locale.US))) {
 			return true;
 		}
 		//if(isSearched(String.valueOf(Item.getIdFromItem(item.item)), search.getContent())) return true;
 		//Enchantment? Enchantment!
 		Map<Enchantment, Integer> enchantIdLvlMap = EnchantmentHelper.getEnchantments(item.unsafeMakeNormalStack(1));
 		for (Entry<Enchantment, Integer> e : enchantIdLvlMap.entrySet()) {
-			String enchantname = e.getKey().getName();
-			if (enchantname != null) {
-				if (isSearched(enchantname.toLowerCase(Locale.US), search.getContent().toLowerCase(Locale.US))) {
-					return true;
+			if (e.getKey() != null) {
+				String enchantname = e.getKey().getName();
+				if (enchantname != null) {
+					if (isSearched(enchantname.toLowerCase(Locale.US), search.getText().toLowerCase(Locale.US))) {
+						return true;
+					}
 				}
 			}
 		}
@@ -595,6 +603,7 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 		for (String s : search.split(" ")) {
 			if (!value.contains(s)) {
 				flag = false;
+				break;
 			}
 		}
 		return flag;
@@ -637,6 +646,16 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 
 	@Override
 	protected void keyTyped(char c, int i) throws IOException {
+		if (search.isFocused()) {
+			if (!search.isEmpty() && search.handleKey(c, i))
+				return;
+		} else if (GuiScreen.isAltKeyDown() && ChatAllowedCharacters.isAllowedCharacter(c)) {
+			itemDisplay.setFocused(false);
+			search.setFocused(true);
+			search.setText("");
+			search.handleKey(c, i);
+			return;
+		}
 		if (!itemDisplay.keyTyped(c, i)) {
 			// Track everything except Escape when in search bar
 			if (i == 1 || !search.handleKey(c, i)) {
@@ -652,6 +671,7 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen implements IItemSear
 	}
 
 	@Override
+	@Nonnull
 	public ItemStack getDisk() {
 		return _table.diskInv.getStackInSlot(0);
 	}

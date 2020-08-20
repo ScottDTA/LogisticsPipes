@@ -1,15 +1,14 @@
 package logisticspipes.network.packets.gui;
 
-import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
+import net.minecraft.entity.player.EntityPlayer;
+
+import logisticspipes.modules.LogisticsModule.ModulePositionType;
 import logisticspipes.network.NewGuiHandler;
 import logisticspipes.network.abstractpackets.CoordinatesPacket;
 import logisticspipes.network.abstractpackets.ModernPacket;
 import logisticspipes.network.guis.pipe.ChassiGuiProvider;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
-
-import net.minecraft.entity.player.EntityPlayer;
-
 import logisticspipes.utils.StaticResolve;
 
 @StaticResolve
@@ -25,7 +24,7 @@ public class GuiOpenChassie extends CoordinatesPacket {
 		if (!(pipe.pipe instanceof CoreRoutedPipe)) {
 			return;
 		}
-		NewGuiHandler.getGui(ChassiGuiProvider.class).setFlag(((CoreRoutedPipe) pipe.pipe).getUpgradeManager().hasUpgradeModuleUpgrade()).setSlot(ModulePositionType.IN_PIPE).setPositionInt(0).setPosX(getPosX()).setPosY(getPosY()).setPosZ(getPosZ()).open(player);
+		NewGuiHandler.getGui(ChassiGuiProvider.class).setFlag(pipe.pipe.getUpgradeManager().hasUpgradeModuleUpgrade()).setSlot(ModulePositionType.IN_PIPE).setPositionInt(0).setPosX(getPosX()).setPosY(getPosY()).setPosZ(getPosZ()).open(player);
 	}
 
 	@Override

@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
@@ -22,7 +23,6 @@ import logisticspipes.interfaces.IInventoryUtil;
 import logisticspipes.interfaces.ILegacyActiveModule;
 import logisticspipes.interfaces.IModuleInventoryReceive;
 import logisticspipes.interfaces.IModuleWatchReciver;
-import logisticspipes.interfaces.ISlotUpgradeManager;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.interfaces.routing.IFilter;
 import logisticspipes.interfaces.routing.IProvideItems;
@@ -30,8 +30,6 @@ import logisticspipes.interfaces.routing.IRequestItems;
 import logisticspipes.logistics.LogisticsManager;
 import logisticspipes.logisticspipes.ExtractionMode;
 import logisticspipes.logisticspipes.IRoutedItem;
-import logisticspipes.modules.abstractmodules.LogisticsModule;
-import logisticspipes.modules.abstractmodules.LogisticsSneakyDirectionModule;
 import logisticspipes.network.NewGuiHandler;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
@@ -41,7 +39,7 @@ import logisticspipes.network.guis.module.inpipe.ProviderModuleGuiProvider;
 import logisticspipes.network.packets.hud.HUDStartModuleWatchingPacket;
 import logisticspipes.network.packets.hud.HUDStopModuleWatchingPacket;
 import logisticspipes.network.packets.module.ModuleInventory;
-import logisticspipes.network.packets.modules.ExtractorModuleMode;
+import logisticspipes.network.packets.modules.SneakyModuleDirectionUpdate;
 import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.basic.CoreRoutedPipe.ItemSendMode;
 import logisticspipes.proxy.MainProxy;
@@ -63,9 +61,11 @@ import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierInventory;
 import logisticspipes.utils.item.ItemIdentifierStack;
+import network.rs485.logisticspipes.module.Gui;
+import network.rs485.logisticspipes.module.SneakyDirection;
 
 @CCType(name = "Provider Module")
-public class ModuleProvider extends LogisticsSneakyDirectionModule implements ILegacyActiveModule, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, IModuleInventoryReceive {
+public class ModuleProvider extends LogisticsModule implements SneakyDirection, ILegacyActiveModule, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, IModuleInventoryReceive, Gui {
 
 	private final ItemIdentifierInventory _filterInventory = new ItemIdentifierInventory(9, "Items to provide (or empty for all)", 1);
 	private EnumFacing _sneakyDirection = null;
@@ -86,45 +86,26 @@ public class ModuleProvider extends LogisticsSneakyDirectionModule implements IL
 
 	public ModuleProvider() {}
 
+	public static String getName() {
+		return "provider";
+	}
+
 	@Override
-	public void readFromNBT(NBTTagCompound nbttagcompound) {
+	public void readFromNBT(@Nonnull NBTTagCompound nbttagcompound) {
 		_filterInventory.readFromNBT(nbttagcompound, "");
 		isActive = nbttagcompound.getBoolean("isActive");
 		isExcludeFilter = nbttagcompound.getBoolean("filterisexclude");
 		_extractionMode = ExtractionMode.getMode(nbttagcompound.getInteger("extractionMode"));
-		if (nbttagcompound.hasKey("sneakydirection")) {
-			_sneakyDirection = EnumFacing.values()[nbttagcompound.getInteger("sneakydirection")];
-		} else if (nbttagcompound.hasKey("sneakyorientation")) {
-			//convert sneakyorientation to sneakydirection
-			int t = nbttagcompound.getInteger("sneakyorientation");
-			switch (t) {
-				default:
-				case 0:
-					_sneakyDirection = null;
-					break;
-				case 1:
-					_sneakyDirection = EnumFacing.UP;
-					break;
-				case 2:
-					_sneakyDirection = EnumFacing.SOUTH;
-					break;
-				case 3:
-					_sneakyDirection = EnumFacing.DOWN;
-					break;
-			}
-		}
-
+		_sneakyDirection = SneakyDirection.readSneakyDirection(nbttagcompound);
 	}
 
 	@Override
-	public void writeToNBT(NBTTagCompound nbttagcompound) {
+	public void writeToNBT(@Nonnull NBTTagCompound nbttagcompound) {
 		_filterInventory.writeToNBT(nbttagcompound, "");
 		nbttagcompound.setBoolean("isActive", isActive);
 		nbttagcompound.setBoolean("filterisexclude", isExcludeFilter);
 		nbttagcompound.setInteger("extractionMode", _extractionMode.ordinal());
-		if (_sneakyDirection != null) {
-			nbttagcompound.setInteger("sneakydirection", _sneakyDirection.ordinal());
-		}
+		SneakyDirection.writeSneakyDirection(_sneakyDirection, nbttagcompound);
 	}
 
 	@Override
@@ -135,25 +116,13 @@ public class ModuleProvider extends LogisticsSneakyDirectionModule implements IL
 	@Override
 	public void setSneakyDirection(EnumFacing sneakyDirection) {
 		_sneakyDirection = sneakyDirection;
-		if(MainProxy.isServer(this._world.getWorld())) {
-			MainProxy.sendToPlayerList(PacketHandler.getPacket(ExtractorModuleMode.class).setDirection(_sneakyDirection).setModulePos(this), localModeWatchers);
+		if (MainProxy.isServer(this._world.getWorld())) {
+			MainProxy.sendToPlayerList(PacketHandler.getPacket(SneakyModuleDirectionUpdate.class).setDirection(_sneakyDirection).setModulePos(this), localModeWatchers);
 		}
 	}
 
-	@Override
-	protected ModuleCoordinatesGuiProvider getPipeGuiProvider() {
-		return NewGuiHandler.getGui(ProviderModuleGuiProvider.class).setExtractorMode(getExtractionMode().ordinal()).setExclude(isExcludeFilter);
-		//.setIsActive(isActive)
-		//.setSneakyDirection(_sneakyDirection);
-	}
-
-	@Override
-	protected ModuleInHandGuiProvider getInHandGuiProvider() {
-		return NewGuiHandler.getGui(ProviderModuleInHand.class);
-	}
-
 	protected int neededEnergy() {
-		return (int) (1 * Math.pow(1.1, getUpgradeManager().getItemExtractionUpgrade()) * Math.pow(1.2, getUpgradeManager().getItemStackExtractionUpgrade()))	;
+		return (int) (1 * Math.pow(1.1, getUpgradeManager().getItemExtractionUpgrade()) * Math.pow(1.2, getUpgradeManager().getItemStackExtractionUpgrade()));
 	}
 
 	protected int itemsToExtract() {
@@ -168,20 +137,8 @@ public class ModuleProvider extends LogisticsSneakyDirectionModule implements IL
 		return getUpgradeManager().getItemExtractionUpgrade() > 0 ? ItemSendMode.Fast : ItemSendMode.Normal;
 	}
 
-	protected ISlotUpgradeManager getUpgradeManager() {
-		if (_service == null) {
-			return null;
-		}
-		return _service.getUpgradeManager(slot, positionInt);
-	}
-
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
-		return null;
-	}
-
-	@Override
-	public LogisticsModule getSubModule(int slot) {
+	public SinkReply sinksItem(@Nonnull ItemStack stack, ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit, boolean forcePassive) {
 		return null;
 	}
 
@@ -229,7 +186,7 @@ public class ModuleProvider extends LogisticsSneakyDirectionModule implements IL
 		if (tree.getRequestType() instanceof ItemResource) {
 			possible.add(((ItemResource) tree.getRequestType()).getItem());
 		} else if (tree.getRequestType() instanceof DictResource) {
-			IInventoryUtil inv = _service.getPointedInventory(_extractionMode, true);
+			IInventoryUtil inv = _service.getPointedInventory(_extractionMode);
 			if (inv != null) {
 				Map<ItemIdentifier, Integer> currentInv = inv.getItemsAndCount();
 				possible.addAll(currentInv.keySet().stream()
@@ -260,7 +217,7 @@ public class ModuleProvider extends LogisticsSneakyDirectionModule implements IL
 
 	@Override
 	public void getAllItems(Map<ItemIdentifier, Integer> items, List<IFilter> filters) {
-		IInventoryUtil inv = _service.getPointedInventory(_extractionMode, true);
+		IInventoryUtil inv = _service.getPointedInventory(_extractionMode);
 		if (inv == null) {
 			return;
 		}
@@ -269,35 +226,35 @@ public class ModuleProvider extends LogisticsSneakyDirectionModule implements IL
 
 		//Skip already added items from this provider, skip filtered items, Reduce what has been reserved, add.
 		outer:
-			for (Entry<ItemIdentifier, Integer> currItem : currentInv.entrySet()) {
-				if (items.containsKey(currItem.getKey())) {
-					continue; // Already provided by the previous module
-				}
+		for (Entry<ItemIdentifier, Integer> currItem : currentInv.entrySet()) {
+			if (items.containsKey(currItem.getKey())) {
+				continue; // Already provided by the previous module
+			}
 
 			if (!filterAllowsItem(currItem.getKey())) {
-					continue;
-				}
+				continue;
+			}
 
 			for (IFilter filter : filters) {
-					if (filter.isBlocked() == filter.isFilteredItem(currItem.getKey().getUndamaged()) || filter.blockProvider()) {
-						continue outer;
-					}
+				if (filter.isBlocked() == filter.isFilteredItem(currItem.getKey().getUndamaged()) || filter.blockProvider()) {
+					continue outer;
 				}
-
-				int remaining = currItem.getValue() - _service.getItemOrderManager().totalItemsCountInOrders(currItem.getKey());
-				if (remaining < 1) {
-					continue;
-				}
-
-				items.put(currItem.getKey(), remaining);
 			}
+
+			int remaining = currItem.getValue() - _service.getItemOrderManager().totalItemsCountInOrders(currItem.getKey());
+			if (remaining < 1) {
+				continue;
+			}
+
+			items.put(currItem.getKey(), remaining);
+		}
 	}
 
 	// returns -1 on permanently failed, don't try another stack this tick
 	// returns 0 on "unable to do this delivery"
 	private int sendStack(ItemIdentifierStack stack, int maxCount, int destination, IAdditionalTargetInformation info) {
 		ItemIdentifier item = stack.getItem();
-		IInventoryUtil inv = _service.getPointedInventory(_extractionMode, true);
+		IInventoryUtil inv = _service.getPointedInventory(_extractionMode);
 		if (inv == null) {
 			_service.getItemOrderManager().sendFailed();
 			return 0;
@@ -311,12 +268,12 @@ public class ModuleProvider extends LogisticsSneakyDirectionModule implements IL
 		int wanted = Math.min(available, stack.getStackSize());
 		wanted = Math.min(wanted, maxCount);
 		wanted = Math.min(wanted, item.getMaxStackSize());
-		IRouter dRtr = SimpleServiceLocator.routerManager.getRouterUnsafe(destination, false);
+		IRouter dRtr = SimpleServiceLocator.routerManager.getServerRouter(destination);
 		if (dRtr == null) {
 			_service.getItemOrderManager().sendFailed();
 			return 0;
 		}
-		SinkReply reply = LogisticsManager.canSink(dRtr, null, true, stack.getItem(), null, true, false);
+		SinkReply reply = LogisticsManager.canSink(stack.makeNormalStack(), dRtr, null, true, stack.getItem(), null, true, false);
 		boolean defersend = false;
 		if (reply != null) {// some pipes are not aware of the space in the adjacent inventory, so they return null
 			if (reply.maxNumberOfItems < wanted) {
@@ -333,7 +290,7 @@ public class ModuleProvider extends LogisticsSneakyDirectionModule implements IL
 		}
 
 		ItemStack removed = inv.getMultipleItems(item, wanted);
-		if (removed == null || removed.isEmpty()) {
+		if (removed.isEmpty()) {
 			_service.getItemOrderManager().sendFailed();
 			return 0;
 		}
@@ -347,7 +304,7 @@ public class ModuleProvider extends LogisticsSneakyDirectionModule implements IL
 
 	private int getTotalItemCount(ItemIdentifier item) {
 
-		IInventoryUtil inv = _service.getPointedInventory(_extractionMode, true);
+		IInventoryUtil inv = _service.getPointedInventory(_extractionMode);
 		if (inv == null) {
 			return 0;
 		}
@@ -403,7 +360,7 @@ public class ModuleProvider extends LogisticsSneakyDirectionModule implements IL
 	}
 
 	@Override
-	public List<String> getClientInformation() {
+	public @Nonnull List<String> getClientInformation() {
 		List<String> list = new ArrayList<>();
 		list.add(!isExcludeFilter ? "Included" : "Excluded");
 		list.add("Mode: " + _extractionMode.getExtractionModeString());
@@ -472,16 +429,14 @@ public class ModuleProvider extends LogisticsSneakyDirectionModule implements IL
 	}
 
 	@Override
-	public List<ItemIdentifier> getSpecificInterests() {
+	public void collectSpecificInterests(@Nonnull Collection<ItemIdentifier> itemidCollection) {
 		//when filter is empty or in exclude mode, this is interested in attached inventory already
 		if (isExcludeFilter || _filterInventory.isEmpty()) {
-			return null;
+			return;
 		}
+
 		// when items included this is only interested in items in the filter
-		Map<ItemIdentifier, Integer> mapIC = _filterInventory.getItemsAndCount();
-		List<ItemIdentifier> li = new ArrayList<>(mapIC.size());
-		li.addAll(mapIC.keySet());
-		return li;
+		itemidCollection.addAll(_filterInventory.getItemsAndCount().keySet());
 	}
 
 	@Override
@@ -498,6 +453,18 @@ public class ModuleProvider extends LogisticsSneakyDirectionModule implements IL
 	@Override
 	public boolean recievePassive() {
 		return false;
+	}
+
+	@Nonnull
+	@Override
+	public ModuleCoordinatesGuiProvider getPipeGuiProvider() {
+		return NewGuiHandler.getGui(ProviderModuleGuiProvider.class).setExtractorMode(getExtractionMode().ordinal()).setExclude(isExcludeFilter);
+	}
+
+	@Nonnull
+	@Override
+	public ModuleInHandGuiProvider getInHandGuiProvider() {
+		return NewGuiHandler.getGui(ProviderModuleInHand.class);
 	}
 
 }

@@ -7,36 +7,29 @@
 package logisticspipes.pipes;
 
 import java.util.Collection;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TreeSet;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import net.minecraft.item.Item;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
 
 import logisticspipes.blocks.LogisticsProgramCompilerTileEntity;
 import logisticspipes.blocks.LogisticsSecurityTileEntity;
 import logisticspipes.blocks.powertile.LogisticsPowerJunctionTileEntity;
 import logisticspipes.interfaces.IInventoryUtil;
+import logisticspipes.modules.LogisticsModule;
+import logisticspipes.modules.LogisticsModule.ModulePositionType;
 import logisticspipes.modules.ModuleItemSink;
-import logisticspipes.modules.abstractmodules.LogisticsModule;
-import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
-import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.routing.pathfinder.IPipeInformationProvider.ConnectionPipeType;
 import logisticspipes.textures.Textures;
 import logisticspipes.textures.Textures.TextureType;
 import logisticspipes.transport.PipeTransportLogistics;
-import logisticspipes.utils.InventoryHelper;
 import logisticspipes.utils.OrientationsUtil;
 import logisticspipes.utils.item.ItemIdentifier;
-import logisticspipes.utils.tuples.Pair;
+import network.rs485.logisticspipes.connection.NeighborTileEntity;
 import network.rs485.logisticspipes.world.WorldCoordinatesWrapper;
-
-import net.minecraft.inventory.IInventory;
-import net.minecraft.item.Item;
-import net.minecraft.tileentity.TileEntity;
-
-import net.minecraft.util.EnumFacing;
-
-import net.minecraftforge.items.CapabilityItemHandler;
 
 public class PipeItemsBasicLogistics extends CoreRoutedPipe {
 
@@ -131,31 +124,26 @@ public class PipeItemsBasicLogistics extends CoreRoutedPipe {
 		itemSinkModule.registerPosition(ModulePositionType.IN_PIPE, 0);
 	}
 
+	@Nullable
 	@Override
 	public IInventoryUtil getPointedInventory() {
-		IInventoryUtil inv = super.getPointedInventory();
-		if (inv == null) {
-			Optional<WorldCoordinatesWrapper.AdjacentTileEntity> first = new WorldCoordinatesWrapper(container).getConnectedAdjacentTileEntities(ConnectionPipeType.ITEM)
-					.filter(adjacent -> adjacent.hasCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY)).findFirst();
-			if (first.isPresent()) {
-				inv = SimpleServiceLocator.inventoryUtilFactory.getInventoryUtil(first.get());
-			}
+		IInventoryUtil invUtil = super.getPointedInventory();
+		if (invUtil == null) {
+			invUtil = new WorldCoordinatesWrapper(container)
+					.connectedTileEntities(ConnectionPipeType.ITEM)
+					.filter(NeighborTileEntity::isItemHandler)
+					.findFirst()
+					.map(NeighborTileEntity::getUtilForItemHandler)
+					.orElse(null);
 		}
-		return inv;
+		return invUtil;
 	}
 
 	@Override
-	public Set<ItemIdentifier> getSpecificInterests() {
-		if (itemSinkModule.isDefaultRoute()) {
-			return null;
+	public void collectSpecificInterests(@Nonnull Collection<ItemIdentifier> itemidCollection) {
+		if (!itemSinkModule.isDefaultRoute()) {
+			itemSinkModule.collectSpecificInterests(itemidCollection);
 		}
-
-		Set<ItemIdentifier> l1 = new TreeSet<>();
-		Collection<ItemIdentifier> current = itemSinkModule.getSpecificInterests();
-		if (current != null) {
-			l1.addAll(current);
-		}
-		return l1;
 	}
 
 	@Override

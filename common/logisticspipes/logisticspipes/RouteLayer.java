@@ -6,26 +6,27 @@
 
 package logisticspipes.logisticspipes;
 
+import javax.annotation.Nonnull;
+
+import net.minecraft.util.EnumFacing;
+
 import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.routing.ExitRoute;
 import logisticspipes.routing.IRouter;
-import logisticspipes.transport.LPTravelingItem.LPTravelingItemServer;
-
-import net.minecraft.util.EnumFacing;
 
 /**
  * @author Krapht This class is responsible for resolving where incoming items
- *         should go.
+ * should go.
  */
 public class RouteLayer {
 
-	protected final IRouter _router;
+	protected final @Nonnull IRouter _router;
 	private final TransportLayer _transport;
 	private final CoreRoutedPipe _pipe;
 
-	public RouteLayer(IRouter router, TransportLayer transportLayer, CoreRoutedPipe pipe) {
+	public RouteLayer(@Nonnull IRouter router, TransportLayer transportLayer, CoreRoutedPipe pipe) {
 		_router = router;
 		_transport = transportLayer;
 		_pipe = pipe;
@@ -37,13 +38,13 @@ public class RouteLayer {
 		//If a item has no destination, find one
 		if (item.getDestination() < 0) {
 			item = SimpleServiceLocator.logisticsManager.assignDestinationFor(item, _router.getSimpleID(), false);
-			_pipe.debug.log("No Destination, assigned new destination: (" + ((LPTravelingItemServer) item).getInfo());
+			_pipe.debug.log("No Destination, assigned new destination: (" + item.getInfo());
 		}
 
 		//If the destination is unknown / unroutable or it already arrived at its destination and somehow looped back
 		if (item.getDestination() >= 0 && (!_router.hasRoute(item.getDestination(), item.getTransportMode() == TransportMode.Active, item.getItemIdentifierStack().getItem()) || item.getArrived())) {
 			item = SimpleServiceLocator.logisticsManager.assignDestinationFor(item, _router.getSimpleID(), false);
-			_pipe.debug.log("Unreachable Destination, sssigned new destination: (" + ((LPTravelingItemServer) item).getInfo());
+			_pipe.debug.log("Unreachable Destination, sssigned new destination: (" + item.getInfo());
 		}
 
 		item.checkIDFromUUID();
@@ -68,8 +69,7 @@ public class RouteLayer {
 
 			item.setDoNotBuffer(true);
 			item.setArrived(true);
-			EnumFacing o = _transport.itemArrived(item, blocked);
-			return o != null ? o : null;
+			return _transport.itemArrived(item, blocked);
 		}
 
 		//Do we now know the destination?

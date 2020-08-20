@@ -1,20 +1,21 @@
 package logisticspipes.network.guis.pipe;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 
 import logisticspipes.gui.GuiChassiPipe;
 import logisticspipes.items.ItemUpgrade;
-import logisticspipes.modules.abstractmodules.LogisticsModule;
+import logisticspipes.modules.LogisticsModule;
 import logisticspipes.network.abstractguis.BooleanModuleCoordinatesGuiProvider;
 import logisticspipes.network.abstractguis.GuiProvider;
 import logisticspipes.pipes.PipeLogisticsChassi;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
 import logisticspipes.pipes.upgrades.ModuleUpgradeManager;
-import logisticspipes.utils.gui.DummyContainer;
-
 import logisticspipes.utils.StaticResolve;
+import logisticspipes.utils.gui.DummyContainer;
 
 @StaticResolve
 public class ChassiGuiProvider extends BooleanModuleCoordinatesGuiProvider {
@@ -25,8 +26,8 @@ public class ChassiGuiProvider extends BooleanModuleCoordinatesGuiProvider {
 
 	@Override
 	public Object getClientGui(EntityPlayer player) {
-		LogisticsTileGenericPipe pipe = getPipe(player.getEntityWorld());
-		if (pipe == null || !(pipe.pipe instanceof PipeLogisticsChassi)) {
+		LogisticsTileGenericPipe pipe = getTileAs(player.world, LogisticsTileGenericPipe.class);
+		if (!(pipe.pipe instanceof PipeLogisticsChassi)) {
 			return null;
 		}
 		return new GuiChassiPipe(player, (PipeLogisticsChassi) pipe.pipe, isFlag());
@@ -34,8 +35,8 @@ public class ChassiGuiProvider extends BooleanModuleCoordinatesGuiProvider {
 
 	@Override
 	public DummyContainer getContainer(EntityPlayer player) {
-		LogisticsTileGenericPipe pipe = getPipe(player.getEntityWorld());
-		if (pipe == null || !(pipe.pipe instanceof PipeLogisticsChassi)) {
+		LogisticsTileGenericPipe pipe = getTileAs(player.world, LogisticsTileGenericPipe.class);
+		if (!(pipe.pipe instanceof PipeLogisticsChassi)) {
 			return null;
 		}
 		final PipeLogisticsChassi _chassiPipe = (PipeLogisticsChassi) pipe.pipe;
@@ -46,23 +47,8 @@ public class ChassiGuiProvider extends BooleanModuleCoordinatesGuiProvider {
 		} else {
 			dummy.addNormalSlotsForPlayerInventory(18, 174);
 		}
-		if (_chassiPipe.getChassiSize() > 0) {
-			dummy.addModuleSlot(0, _moduleInventory, 19, 9, _chassiPipe);
-		}
-		if (_chassiPipe.getChassiSize() > 1) {
-			dummy.addModuleSlot(1, _moduleInventory, 19, 29, _chassiPipe);
-		}
-		if (_chassiPipe.getChassiSize() > 2) {
-			dummy.addModuleSlot(2, _moduleInventory, 19, 49, _chassiPipe);
-		}
-		if (_chassiPipe.getChassiSize() > 3) {
-			dummy.addModuleSlot(3, _moduleInventory, 19, 69, _chassiPipe);
-		}
-		if (_chassiPipe.getChassiSize() > 4) {
-			dummy.addModuleSlot(4, _moduleInventory, 19, 89, _chassiPipe);
-			dummy.addModuleSlot(5, _moduleInventory, 19, 109, _chassiPipe);
-			dummy.addModuleSlot(6, _moduleInventory, 19, 129, _chassiPipe);
-			dummy.addModuleSlot(7, _moduleInventory, 19, 149, _chassiPipe);
+		for (int i = 0; i < _chassiPipe.getChassiSize(); i++) {
+			dummy.addModuleSlot(i, _moduleInventory, 19, 9 + 20 * i, _chassiPipe);
 		}
 
 		if (_chassiPipe.getUpgradeManager().hasUpgradeModuleUpgrade()) {
@@ -76,18 +62,15 @@ public class ChassiGuiProvider extends BooleanModuleCoordinatesGuiProvider {
 		return dummy;
 	}
 
-	public static boolean checkStack(ItemStack stack, PipeLogisticsChassi chassiPipe, int moduleSlot) {
-		if (stack == null) {
-			return false;
-		}
-		if (!(stack.getItem() instanceof ItemUpgrade)) {
+	public static boolean checkStack(@Nonnull ItemStack stack, PipeLogisticsChassi chassiPipe, int moduleSlot) {
+		if (stack.isEmpty() || !(stack.getItem() instanceof ItemUpgrade)) {
 			return false;
 		}
 		LogisticsModule module = chassiPipe.getModules().getModule(moduleSlot);
 		if (module == null) {
 			return false;
 		}
-		return ((ItemUpgrade)stack.getItem()).getUpgradeForItem(stack, null).isAllowedForModule(module);
+		return ((ItemUpgrade) stack.getItem()).getUpgradeForItem(stack, null).isAllowedForModule(module);
 	}
 
 	@Override

@@ -10,11 +10,10 @@ import logisticspipes.modules.ModuleCrafter;
 import logisticspipes.network.abstractguis.GuiProvider;
 import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
 import logisticspipes.proxy.MainProxy;
+import logisticspipes.utils.StaticResolve;
 import logisticspipes.utils.gui.DummyContainer;
 import network.rs485.logisticspipes.util.LPDataInput;
 import network.rs485.logisticspipes.util.LPDataOutput;
-
-import logisticspipes.utils.StaticResolve;
 
 @StaticResolve
 public class CraftingModuleSlot extends ModuleCoordinatesGuiProvider {
@@ -68,7 +67,7 @@ public class CraftingModuleSlot extends ModuleCoordinatesGuiProvider {
 			return null;
 		}
 		MainProxy.sendPacketToPlayer(module.getCPipePacket(), player);
-		DummyContainer dummy = new DummyContainer(player.inventory, module.getDummyInventory());
+		DummyContainer dummy = new DummyContainer(player, module.getDummyInventory(), module);
 		dummy.addNormalSlotsForPlayerInventory(18, 97);
 		//Input slots
 		for (int l = 0; l < 9; l++) {

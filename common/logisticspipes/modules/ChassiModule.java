@@ -2,12 +2,12 @@ package logisticspipes.modules;
 
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nonnull;
+
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 
 import logisticspipes.interfaces.IInventoryUtil;
-import logisticspipes.interfaces.IPipeServiceProvider;
-import logisticspipes.interfaces.IWorldProvider;
-import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
-import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.network.NewGuiHandler;
 import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
 import logisticspipes.network.abstractguis.ModuleInHandGuiProvider;
@@ -18,10 +18,9 @@ import logisticspipes.proxy.computers.objects.CCSinkResponder;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
+import network.rs485.logisticspipes.module.Gui;
 
-import net.minecraft.nbt.NBTTagCompound;
-
-public class ChassiModule extends LogisticsGuiModule {
+public class ChassiModule extends LogisticsModule implements Gui {
 
 	private final LogisticsModule[] modules;
 	private final PipeLogisticsChassi parentChassis;
@@ -29,7 +28,6 @@ public class ChassiModule extends LogisticsGuiModule {
 	public ChassiModule(int moduleCount, PipeLogisticsChassi parentChassis) {
 		modules = new LogisticsModule[moduleCount];
 		this.parentChassis = parentChassis;
-		_service = parentChassis;
 		registerPosition(ModulePositionType.IN_PIPE, 0);
 	}
 
@@ -54,15 +52,17 @@ public class ChassiModule extends LogisticsGuiModule {
 	}
 
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
+	public SinkReply sinksItem(@Nonnull ItemStack stack, ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit, boolean forcePassive) {
 		SinkReply bestresult = null;
 		for (LogisticsModule module : modules) {
 			if (module != null) {
-				SinkReply result = module.sinksItem(item, bestPriority, bestCustomPriority, allowDefault, includeInTransit);
-				if (result != null && result.maxNumberOfItems >= 0) {
-					bestresult = result;
-					bestPriority = result.fixedPriority.ordinal();
-					bestCustomPriority = result.customPriority;
+				if (!forcePassive || module.recievePassive()) {
+					SinkReply result = module.sinksItem(stack, item, bestPriority, bestCustomPriority, allowDefault, includeInTransit, forcePassive);
+					if (result != null && result.maxNumberOfItems >= 0) {
+						bestresult = result;
+						bestPriority = result.fixedPriority.ordinal();
+						bestCustomPriority = result.customPriority;
+					}
 				}
 			}
 		}
@@ -71,21 +71,22 @@ public class ChassiModule extends LogisticsGuiModule {
 			return null;
 		}
 		//Always deny items when we can't put the item anywhere
-		IInventoryUtil invUtil = parentChassis.getSneakyInventory(false, ModulePositionType.SLOT, ((ChassiTargetInformation) bestresult.addInfo).getModuleSlot());
+		IInventoryUtil invUtil = parentChassis.getSneakyInventory(ModulePositionType.SLOT, ((ChassiTargetInformation) bestresult.addInfo).getModuleSlot());
 		if (invUtil == null) {
 			return null;
 		}
-		int roomForItem = invUtil.roomForItem(item);
-		if (roomForItem < 1) {
-			return null;
-		}
+		int roomForItem;
 		if (includeInTransit) {
 			int onRoute = parentChassis.countOnRoute(item);
-			roomForItem = invUtil.roomForItem(item, onRoute + item.getMaxStackSize());
+			final ItemStack copy = stack.copy();
+			copy.setCount(onRoute + item.getMaxStackSize());
+			roomForItem = invUtil.roomForItem(copy);
 			roomForItem -= onRoute;
-			if (roomForItem < 1) {
-				return null;
-			}
+		} else {
+			roomForItem = invUtil.roomForItem(stack);
+		}
+		if (roomForItem < 1) {
+			return null;
 		}
 
 		if (bestresult.maxNumberOfItems == 0) {
@@ -95,15 +96,7 @@ public class ChassiModule extends LogisticsGuiModule {
 	}
 
 	@Override
-	public LogisticsModule getSubModule(int slot) {
-		if (slot < 0 || slot >= modules.length) {
-			return null;
-		}
-		return modules[slot];
-	}
-
-	@Override
-	public void readFromNBT(NBTTagCompound nbttagcompound) {
+	public void readFromNBT(@Nonnull NBTTagCompound nbttagcompound) {
 		for (int i = 0; i < modules.length; i++) {
 			if (modules[i] != null) {
 				NBTTagCompound slot = nbttagcompound.getCompoundTag("slot" + i);
@@ -115,7 +108,7 @@ public class ChassiModule extends LogisticsGuiModule {
 	}
 
 	@Override
-	public void writeToNBT(NBTTagCompound nbttagcompound) {
+	public void writeToNBT(@Nonnull NBTTagCompound nbttagcompound) {
 		for (int i = 0; i < modules.length; i++) {
 			if (modules[i] != null) {
 				NBTTagCompound slot = new NBTTagCompound();
@@ -136,18 +129,8 @@ public class ChassiModule extends LogisticsGuiModule {
 	}
 
 	@Override
-	public void registerHandler(IWorldProvider world, IPipeServiceProvider service) {
-		//Not used in Chassie Module
-	}
-
-	@Override
 	public boolean hasGenericInterests() {
 		return false;
-	}
-
-	@Override
-	public List<ItemIdentifier> getSpecificInterests() {
-		return null;
 	}
 
 	@Override
@@ -181,13 +164,15 @@ public class ChassiModule extends LogisticsGuiModule {
 		return list;
 	}
 
+	@Nonnull
 	@Override
-	protected ModuleCoordinatesGuiProvider getPipeGuiProvider() {
+	public ModuleCoordinatesGuiProvider getPipeGuiProvider() {
 		return NewGuiHandler.getGui(ChassiGuiProvider.class).setFlag(parentChassis.getUpgradeManager().hasUpgradeModuleUpgrade());
 	}
 
+	@Nonnull
 	@Override
-	protected ModuleInHandGuiProvider getInHandGuiProvider() {
-		return null;
+	public ModuleInHandGuiProvider getInHandGuiProvider() {
+		throw new UnsupportedOperationException("Chassis GUI can never be opened in hand");
 	}
 }
